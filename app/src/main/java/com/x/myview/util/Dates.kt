@@ -69,3 +69,20 @@ fun timeOfDay(millis: Long): String =
         .atZone(java.time.ZoneId.systemDefault())
         .toLocalTime()
         .format(java.time.format.DateTimeFormatter.ofPattern("h:mm a", Locale.getDefault()))
+
+/** Minutes after midnight as a clock string, e.g. 1125 -> "6:45 PM". */
+fun formatClock(minutes: Int): String {
+    val h = (minutes / 60) % 24
+    val m = minutes % 60
+    val h12 = if (h % 12 == 0) 12 else h % 12
+    return String.format(Locale.US, "%d:%02d %s", h12, m, if (h < 12) "AM" else "PM")
+}
+
+/** 12345 -> "12,345" in the phone's number style. */
+fun formatSteps(n: Int): String = java.text.NumberFormat.getIntegerInstance().format(n)
+
+/** Hour of day as "6 PM". */
+fun formatHour(hour24: Int): String {
+    val h12 = if (hour24 % 12 == 0) 12 else hour24 % 12
+    return "$h12 ${if (hour24 < 12) "AM" else "PM"}"
+}
