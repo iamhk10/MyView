@@ -35,6 +35,7 @@ import com.x.myview.ui.screens.HabitDetailScreen
 import com.x.myview.ui.screens.HabitEditScreen
 import com.x.myview.ui.screens.HabitsScreen
 import com.x.myview.ui.screens.SettingsScreen
+import com.x.myview.ui.screens.StepsScreen
 import com.x.myview.ui.screens.TodayScreen
 import com.x.myview.ui.screens.WaterScreen
 import com.x.myview.ui.screens.WorkoutScreen
@@ -101,6 +102,7 @@ private fun RootContent(vm: MainViewModel) {
             Box(Modifier.fillMaxSize().statusBarsPadding()) {
                 when (parts[0]) {
                     "settings" -> SettingsScreen(vm, onBack = ::close)
+                    "steps" -> StepsScreen(vm, onBack = ::close)
                     "habit" -> HabitDetailScreen(vm, id, onBack = ::close, onEdit = { open("habitedit:$id") })
                     "habitedit" -> HabitEditScreen(vm, id, onBack = ::close)
                     "ex" -> ExerciseDetailScreen(vm, id, onBack = ::close, onEdit = { open("exedit:$id") })

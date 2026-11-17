@@ -9,7 +9,9 @@ import com.x.myview.data.db.ExerciseEntity
 import com.x.myview.data.db.ExerciseLogEntity
 import com.x.myview.data.db.HabitEntity
 import com.x.myview.data.db.WaterLogEntity
+import com.x.myview.reminders.Reminders
 import com.x.myview.util.todayEpochDay
+import com.x.myview.widget.WidgetUpdater
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -20,10 +22,11 @@ import kotlinx.coroutines.launch
 import java.time.Duration
 import java.time.LocalDateTime
 
-class MainViewModel(app: Application) : AndroidViewModel(app) {
+class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     private val container = (app as MyViewApp).container
     private val repo = container.repository
     private val settingsStore = container.settings
+    private val stepTracker = container.stepTracker
 
     val settings: StateFlow<AppSettings> = settingsStore.settings
 
@@ -42,6 +45,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val waterLogs: StateFlow<List<WaterLogEntity>> =
         repo.waterLogs.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
+    /** Steps per day. Stays empty on phones without a step sensor. */
+    val steps: StateFlow<Map<Long, Int>> = stepTracker.steps
+    val stepsSupported: Boolean = stepTracker.isSupported
+
     init {
         viewModelScope.launch { repo.ensureSeed() }
         viewModelScope.launch {
@@ -59,19 +66,39 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         _today.value = todayEpochDay()
     }
 
-    fun updateSettings(change: (AppSettings) -> AppSettings) = settingsStore.update(change)
+    fun updateSettings(change: (AppSettings) -> AppSettings) {
+        settingsStore.update(change)
+        Reminders.scheduleAllAsync(app)
+        WidgetUpdater.updateAllAsync(app)
+    }
+
+    // ---- Steps ----
+    fun startSteps() = stepTracker.startLive()
+    fun stopSteps() = stepTracker.stopLive()
+    fun stepsPermissionGranted(): Boolean = stepTracker.hasPermission()
 
     // ---- Habits ----
     fun toggleHabit(habitId: Long, day: Long, done: Boolean) {
-        viewModelScope.launch { repo.setHabitDone(habitId, day, done) }
+        viewModelScope.launch {
+            repo.setHabitDone(habitId, day, done)
+            WidgetUpdater.updateAll(app)
+        }
     }
 
     fun saveHabit(habit: HabitEntity) {
-        viewModelScope.launch { repo.saveHabit(habit) }
+        viewModelScope.launch {
+            repo.saveHabit(habit)
+            Reminders.scheduleAll(app)
+            WidgetUpdater.updateAll(app)
+        }
     }
 
     fun deleteHabit(id: Long) {
-        viewModelScope.launch { repo.deleteHabit(id) }
+        viewModelScope.launch {
+            repo.deleteHabit(id)
+            Reminders.cancelHabit(app, id)
+            WidgetUpdater.updateAll(app)
+        }
     }
 
     // ---- Exercises ----
@@ -80,25 +107,40 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun deleteExercise(id: Long) {
-        viewModelScope.launch { repo.deleteExercise(id) }
+        viewModelScope.launch {
+            repo.deleteExercise(id)
+            WidgetUpdater.updateAll(app)
+        }
     }
 
     fun addExerciseLog(exerciseId: Long, amount: Int) {
         val day = todayEpochDay()
-        viewModelScope.launch { repo.addExerciseLog(exerciseId, day, amount) }
+        viewModelScope.launch {
+            repo.addExerciseLog(exerciseId, day, amount)
+            WidgetUpdater.updateAll(app)
+        }
     }
 
     fun deleteExerciseLog(id: Long) {
-        viewModelScope.launch { repo.deleteExerciseLog(id) }
+        viewModelScope.launch {
+            repo.deleteExerciseLog(id)
+            WidgetUpdater.updateAll(app)
+        }
     }
 
     // ---- Water ----
     fun addWater(ml: Int) {
         val day = todayEpochDay()
-        viewModelScope.launch { repo.addWater(day, ml) }
+        viewModelScope.launch {
+            repo.addWater(day, ml)
+            WidgetUpdater.updateAll(app)
+        }
     }
 
     fun deleteWater(id: Long) {
-        viewModelScope.launch { repo.deleteWater(id) }
+        viewModelScope.launch {
+            repo.deleteWater(id)
+            WidgetUpdater.updateAll(app)
+        }
     }
 }
