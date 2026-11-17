@@ -2,13 +2,16 @@
 
 Habits, workouts and water in one free Android app. No internet access, no ads, all data stays on the phone.
 
-**v0.1.0 features**
+**Features (v0.2.0)**
 - Habit tracker with streaks, best streak, 12-week heatmap, weekday schedule
 - Workout counter: push-ups, pull-ups, squats and more (reps), plank and more (timer), custom exercises, daily goals, 7-day chart
 - Water tracker: daily goal, quick add, custom amount, history, 7-day chart
+- Step counter (only on phones with a step sensor; hidden otherwise), daily goal, 7-day chart
+- Reminders: per habit, water (every 1-6 h), daily workout; notification buttons "Mark done" and "+ ml"
+- Home-screen widgets: Habits (tap to tick), Water (quick add), Summary (steps, water, reps, habits)
 - Themes: Auto/Light/Dark/AMOLED, accent colours, wallpaper colours, liquid glass
 
-Coming next: step counter, reminders, home-screen widgets, then sleep and weight logs.
+Coming next (v1.1): sleep log and weight log.
 
 ## Build the APK (GitHub Actions)
 1. Create a new GitHub repository (public, so anyone can download).
