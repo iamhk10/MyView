@@ -95,5 +95,11 @@ class Repository(private val db: MyViewDatabase) {
         exerciseDao.insertAll(list)
     }
 
+    // ---- One-shot reads for reminders and widgets ----
+    suspend fun habitById(id: Long): HabitEntity? = habitDao.getHabit(id)
+    suspend fun isHabitDone(habitId: Long, day: Long): Boolean = habitDao.doneCount(habitId, day) > 0
+    suspend fun waterTotalFor(day: Long): Int = waterDao.total(day)
+    suspend fun hasExerciseLogs(day: Long): Boolean = exerciseDao.logCount(day) > 0
+
     fun today(): Long = todayEpochDay()
 }

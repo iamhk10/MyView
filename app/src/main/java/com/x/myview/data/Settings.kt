@@ -16,6 +16,14 @@ data class AppSettings(
     val waterGoalMl: Int = 2500,
     /** Size of the "one glass" quick-add button in ml. */
     val glassMl: Int = 250,
+    /** Daily step goal. */
+    val stepGoal: Int = 8000,
+    val waterReminder: Boolean = false,
+    /** Hours between water reminders (they run 8:00 to 22:00). */
+    val waterIntervalH: Int = 2,
+    val workoutReminder: Boolean = false,
+    /** Workout reminder time as minutes after midnight. */
+    val workoutReminderMin: Int = 18 * 60,
 )
 
 /** Small settings store on top of SharedPreferences. Exposes the settings as a StateFlow. */
@@ -34,6 +42,11 @@ class SettingsStore(context: Context) {
             glass = prefs.getBoolean("glass", false),
             waterGoalMl = prefs.getInt("waterGoalMl", 2500).coerceIn(500, 8000),
             glassMl = prefs.getInt("glassMl", 250).coerceIn(50, 1500),
+            stepGoal = prefs.getInt("stepGoal", 8000).coerceIn(1000, 50000),
+            waterReminder = prefs.getBoolean("waterReminder", false),
+            waterIntervalH = prefs.getInt("waterIntervalH", 2).coerceIn(1, 6),
+            workoutReminder = prefs.getBoolean("workoutReminder", false),
+            workoutReminderMin = prefs.getInt("workoutReminderMin", 18 * 60).coerceIn(0, 1439),
         )
     }
 
@@ -47,6 +60,11 @@ class SettingsStore(context: Context) {
             .putBoolean("glass", next.glass)
             .putInt("waterGoalMl", next.waterGoalMl)
             .putInt("glassMl", next.glassMl)
+            .putInt("stepGoal", next.stepGoal)
+            .putBoolean("waterReminder", next.waterReminder)
+            .putInt("waterIntervalH", next.waterIntervalH)
+            .putBoolean("workoutReminder", next.workoutReminder)
+            .putInt("workoutReminderMin", next.workoutReminderMin)
             .apply()
     }
 }
