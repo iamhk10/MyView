@@ -32,6 +32,12 @@ interface HabitDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun addLog(log: HabitLogEntity)
 
+    @Query("SELECT * FROM habits WHERE id = :id")
+    suspend fun getHabit(id: Long): HabitEntity?
+
+    @Query("SELECT COUNT(*) FROM habit_logs WHERE habitId = :habitId AND day = :day")
+    suspend fun doneCount(habitId: Long, day: Long): Int
+
     @Query("DELETE FROM habit_logs WHERE habitId = :habitId AND day = :day")
     suspend fun removeLog(habitId: Long, day: Long)
 }
@@ -65,6 +71,9 @@ interface ExerciseDao {
     @Insert
     suspend fun addLog(log: ExerciseLogEntity)
 
+    @Query("SELECT COUNT(*) FROM exercise_logs WHERE day = :day")
+    suspend fun logCount(day: Long): Int
+
     @Query("DELETE FROM exercise_logs WHERE id = :id")
     suspend fun deleteLog(id: Long)
 }
@@ -76,6 +85,9 @@ interface WaterDao {
 
     @Insert
     suspend fun addLog(log: WaterLogEntity)
+
+    @Query("SELECT COALESCE(SUM(ml), 0) FROM water_logs WHERE day = :day")
+    suspend fun total(day: Long): Int
 
     @Query("DELETE FROM water_logs WHERE id = :id")
     suspend fun deleteLog(id: Long)
