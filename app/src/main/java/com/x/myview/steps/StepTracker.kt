@@ -1,0 +1,121 @@
+package com.x.myview.steps
+
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import android.os.Build
+import androidx.core.content.ContextCompat
+import com.x.myview.util.todayEpochDay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.coroutines.resume
+
+/**
+ * Daily step counting on top of the phone's step-counter sensor.
+ *
+ * The sensor returns the total steps since the phone last booted. We keep the last value we saw and
+ * add the difference to today's total every time we read it. A value lower than the last one means
+ * the phone rebooted, so the new value itself is the difference. Phones without the sensor simply
+ * report [isSupported] = false and the app hides everything about steps.
+ */
+class StepTracker(private val context: Context) {
+    private val manager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+    private val sensor: Sensor? = manager?.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
+    private val prefs = context.getSharedPreferences("myview_steps", Context.MODE_PRIVATE)
+
+    val isSupported: Boolean get() = sensor != null
+
+    fun hasPermission(): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACTIVITY_RECOGNITION) ==
+            PackageManager.PERMISSION_GRANTED
+
+    private val _steps = MutableStateFlow(load())
+    /** epoch day -> steps counted that day. */
+    val steps: StateFlow<Map<Long, Int>> = _steps.asStateFlow()
+
+    fun stepsFor(day: Long): Int = _steps.value[day] ?: 0
+
+    private fun load(): Map<Long, Int> {
+        val cutoff = todayEpochDay() - 400
+        val map = HashMap<Long, Int>()
+        for ((key, value) in prefs.all) {
+            if (key.startsWith("d_") && value is Int) {
+                val day = key.removePrefix("d_").toLongOrNull() ?: continue
+                if (day >= cutoff) map[day] = value
+            }
+        }
+        return map
+    }
+
+    @Synchronized
+    private fun record(raw: Long) {
+        val today = todayEpochDay()
+        val last = prefs.getLong("raw", -1L)
+        var delta = when {
+            last < 0 -> 0L                 // first reading ever: only sets the starting point
+            raw >= last -> raw - last
+            else -> raw                    // phone rebooted since the last reading
+        }
+        if (delta > 60000) delta = 0       // an impossible jump, ignore it
+        val editor = prefs.edit().putLong("raw", raw)
+        if (delta > 0) {
+            val total = (_steps.value[today] ?: 0) + delta.toInt()
+            editor.putInt("d_$today", total)
+            _steps.value = _steps.value + (today to total)
+        }
+        editor.apply()
+    }
+
+    private val liveListener = object : SensorEventListener {
+        override fun onSensorChanged(event: SensorEvent) {
+            record(event.values[0].toLong())
+        }
+
+        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+    }
+    private var live = false
+
+    /** Keeps the count updating while the app is on screen. */
+    fun startLive() {
+        val s = sensor ?: return
+        if (live || !hasPermission()) return
+        live = manager?.registerListener(liveListener, s, SensorManager.SENSOR_DELAY_NORMAL) == true
+    }
+
+    fun stopLive() {
+        if (!live) return
+        manager?.unregisterListener(liveListener)
+        live = false
+    }
+
+    /** Reads the sensor once (used by the background worker). */
+    suspend fun readOnce(timeoutMs: Long = 5000) {
+        val s = sensor ?: return
+        val m = manager ?: return
+        if (!hasPermission()) return
+        withTimeoutOrNull(timeoutMs) {
+            suspendCancellableCoroutine<Unit> { cont ->
+                val listener = object : SensorEventListener {
+                    override fun onSensorChanged(event: SensorEvent) {
+                        m.unregisterListener(this)
+                        record(event.values[0].toLong())
+                        if (cont.isActive) cont.resume(Unit)
+                    }
+
+                    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+                }
+                val ok = m.registerListener(listener, s, SensorManager.SENSOR_DELAY_NORMAL)
+                if (!ok && cont.isActive) cont.resume(Unit)
+                cont.invokeOnCancellation { m.unregisterListener(listener) }
+            }
+        }
+    }
+}
