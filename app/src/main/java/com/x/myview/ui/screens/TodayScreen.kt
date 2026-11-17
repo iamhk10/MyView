@@ -21,7 +21,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -45,6 +47,8 @@ import com.x.myview.ui.theme.bottomInset
 import com.x.myview.ui.theme.itemColor
 import com.x.myview.util.formatDuration
 import com.x.myview.util.formatMl
+import com.x.myview.util.formatSteps
+import com.x.myview.ui.theme.StepsTeal
 import com.x.myview.util.niceDate
 import com.x.myview.data.db.KIND_TIME
 
@@ -57,6 +61,13 @@ fun TodayScreen(vm: MainViewModel, onOpen: (String) -> Unit, onGoTab: (Int) -> U
     val exercises by vm.exercises.collectAsState()
     val exLogs by vm.exerciseLogs.collectAsState()
     val water by vm.waterLogs.collectAsState()
+    val steps by vm.steps.collectAsState()
+    val stepsToday = steps[today] ?: 0
+    var stepsGranted by remember { mutableStateOf(vm.stepsPermissionGranted()) }
+    val askSteps = rememberPermissionRequest(android.Manifest.permission.ACTIVITY_RECOGNITION) { ok ->
+        stepsGranted = ok
+        if (ok) vm.startSteps()
+    }
 
     val planned = remember(habits, today) { scheduledHabits(habits, today) }
     val doneCount = planned.count { today in (done[it.id] ?: emptySet()) }
@@ -80,9 +91,43 @@ fun TodayScreen(vm: MainViewModel, onOpen: (String) -> Unit, onGoTab: (Int) -> U
                         .padding(vertical = 18.dp, horizontal = 8.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                 ) {
+                    if (vm.stepsSupported) {
+                        SummaryRing("Steps", formatSteps(stepsToday), stepsToday.toFloat() / settings.stepGoal.coerceAtLeast(1), StepsTeal)
+                    }
                     SummaryRing("Habits", "$doneCount/${planned.size}", habitProgress, MaterialTheme.colorScheme.primary)
                     SummaryRing("Water", formatMl(waterMl), waterProgress, WaterBlue)
                     SummaryRing("Workout", if (workedOut.isEmpty()) "-" else "${workedOut.size} done", workout, Color(0xFFFF9A3D))
+                }
+            }
+        }
+
+        if (vm.stepsSupported) {
+            item {
+                MvCard(
+                    Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                    onClick = { onOpen("steps") },
+                ) {
+                    Column(Modifier.padding(16.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "${formatSteps(stepsToday)} steps",
+                                Modifier.weight(1f),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            if (!stepsGranted) {
+                                androidx.compose.material3.FilledTonalButton(onClick = askSteps) { Text("Allow") }
+                            } else {
+                                Text(
+                                    "goal ${formatSteps(settings.stepGoal)}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        MiniBar(stepsToday.toFloat() / settings.stepGoal.coerceAtLeast(1), StepsTeal)
+                    }
                 }
             }
         }
@@ -167,7 +212,7 @@ fun TodayScreen(vm: MainViewModel, onOpen: (String) -> Unit, onGoTab: (Int) -> U
 @Composable
 private fun SummaryRing(label: String, value: String, progress: Float, color: Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        ProgressRing(progress, size = 88.dp, stroke = 9.dp, color = color) {
+        ProgressRing(progress, size = 76.dp, stroke = 8.dp, color = color) {
             Text(
                 value,
                 style = MaterialTheme.typography.labelLarge,

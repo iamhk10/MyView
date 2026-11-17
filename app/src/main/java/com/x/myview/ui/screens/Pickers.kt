@@ -165,3 +165,22 @@ private fun StepButton(icon: androidx.compose.ui.graphics.vector.ImageVector, de
         Icon(icon, desc, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
     }
 }
+
+/** Pick a time of day with hour and minute (5 minute steps) steppers. [minutes] is minutes after midnight. */
+@Composable
+fun TimeStepper(minutes: Int, onChange: (Int) -> Unit) {
+    val h = minutes / 60
+    val m = minutes % 60
+    Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Stepper(
+            com.x.myview.util.formatHour(h),
+            { onChange(((h + 23) % 24) * 60 + m) },
+            { onChange(((h + 1) % 24) * 60 + m) },
+        )
+        Stepper(
+            String.format(java.util.Locale.US, ":%02d", m),
+            { onChange(h * 60 + (m + 55) % 60) },
+            { onChange(h * 60 + (m + 5) % 60) },
+        )
+    }
+}

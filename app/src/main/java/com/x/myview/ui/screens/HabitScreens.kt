@@ -28,6 +28,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.AlertDialog
@@ -237,8 +238,10 @@ fun HabitEditScreen(vm: MainViewModel, id: Long, onBack: () -> Unit) {
     var icon by remember(existing?.id) { mutableStateOf(existing?.icon ?: "check") }
     var colorIndex by remember(existing?.id) { mutableIntStateOf(existing?.colorIndex ?: 0) }
     var days by remember(existing?.id) { mutableIntStateOf(existing?.days ?: ALL_DAYS) }
+    var reminderMin by remember(existing?.id) { mutableIntStateOf(existing?.reminderMin ?: -1) }
     var confirmDelete by remember { mutableStateOf(false) }
     val color = itemColor(colorIndex)
+    val askNotifications = rememberNotificationRequest()
 
     Column(Modifier.fillMaxSize().imePadding()) {
         BackHeader(if (id == 0L) "New habit" else "Edit habit", onBack)
@@ -273,6 +276,37 @@ fun HabitEditScreen(vm: MainViewModel, id: Long, onBack: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "Reminder",
+                        Modifier.weight(1f),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Switch(
+                        checked = reminderMin >= 0,
+                        onCheckedChange = { on ->
+                            if (on) {
+                                reminderMin = 20 * 60
+                                askNotifications()
+                            } else {
+                                reminderMin = -1
+                            }
+                        },
+                    )
+                }
+                if (reminderMin >= 0) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            com.x.myview.util.formatClock(reminderMin),
+                            Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                        TimeStepper(reminderMin) { reminderMin = it }
+                    }
+                }
+            }
             Spacer(Modifier.height(4.dp))
         }
         Column(
@@ -289,7 +323,7 @@ fun HabitEditScreen(vm: MainViewModel, id: Long, onBack: () -> Unit) {
                         createdAt = System.currentTimeMillis(),
                         sortOrder = habits.size,
                     )
-                    vm.saveHabit(base.copy(name = name.trim(), icon = icon, colorIndex = colorIndex, days = days))
+                    vm.saveHabit(base.copy(name = name.trim(), icon = icon, colorIndex = colorIndex, days = days, reminderMin = reminderMin))
                     onBack()
                 },
                 enabled = name.isNotBlank() && days != 0,

@@ -34,11 +34,14 @@ import com.x.myview.ui.MainViewModel
 import com.x.myview.ui.components.MvCard
 import com.x.myview.ui.components.SectionTitle
 import com.x.myview.ui.theme.ACCENTS
+import com.x.myview.util.formatClock
 import com.x.myview.util.formatMl
+import com.x.myview.util.formatSteps
 
 @Composable
 fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
     val s by vm.settings.collectAsState()
+    val askNotifications = rememberNotificationRequest()
 
     Column(Modifier.fillMaxSize()) {
         BackHeader("Settings", onBack)
@@ -96,11 +99,57 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 }
             }
 
+            if (vm.stepsSupported) {
+                SectionTitle("Steps")
+                MvCard(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                    Column(Modifier.padding(16.dp)) {
+                        StepperRow("Daily goal", formatSteps(s.stepGoal),
+                            { vm.updateSettings { it.copy(stepGoal = (it.stepGoal - 500).coerceAtLeast(1000)) } },
+                            { vm.updateSettings { it.copy(stepGoal = (it.stepGoal + 500).coerceAtMost(50000)) } })
+                    }
+                }
+            }
+
+            SectionTitle("Reminders")
+            MvCard(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    SwitchRow("Water reminders", "Between 8 AM and 10 PM, only while you are below your goal", s.waterReminder) { v ->
+                        if (v) askNotifications()
+                        vm.updateSettings { it.copy(waterReminder = v) }
+                    }
+                    if (s.waterReminder) {
+                        StepperRow("Every", if (s.waterIntervalH == 1) "1 hour" else "${s.waterIntervalH} hours",
+                            { vm.updateSettings { it.copy(waterIntervalH = (it.waterIntervalH - 1).coerceAtLeast(1)) } },
+                            { vm.updateSettings { it.copy(waterIntervalH = (it.waterIntervalH + 1).coerceAtMost(6)) } })
+                    }
+                    SwitchRow("Workout reminder", "Daily, only if you have not logged any exercise", s.workoutReminder) { v ->
+                        if (v) askNotifications()
+                        vm.updateSettings { it.copy(workoutReminder = v) }
+                    }
+                    if (s.workoutReminder) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                formatClock(s.workoutReminderMin),
+                                Modifier.weight(1f),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            TimeStepper(s.workoutReminderMin) { m -> vm.updateSettings { it.copy(workoutReminderMin = m) } }
+                        }
+                    }
+                    Text(
+                        "Habit reminders are set inside each habit. Android can deliver reminders a few minutes late. If they do not show up on Xiaomi, Oppo, Vivo, Realme or Samsung phones, set MyView battery usage to Unrestricted in the phone's app settings.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
             SectionTitle("About")
             MvCard(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("MyView", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text("Version 0.1.0", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Version 0.2.0", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(
                         "Habits, workouts and water in one place. Every feature is free. Your data stays on your phone; the app has no internet access.",
                         style = MaterialTheme.typography.bodyMedium,
