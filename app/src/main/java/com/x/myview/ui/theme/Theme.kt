@@ -53,6 +53,7 @@ fun itemColor(index: Int): Color = ITEM_COLORS[index.coerceIn(0, ITEM_COLORS.las
 
 val WaterBlue = Color(0xFF4DB8FF)
 val FireOrange = Color(0xFFFF9A3D)
+val StepsTeal = Color(0xFF3DD6C6)
 
 val LocalIsDark = staticCompositionLocalOf { true }
 val LocalGlass = staticCompositionLocalOf { false }
