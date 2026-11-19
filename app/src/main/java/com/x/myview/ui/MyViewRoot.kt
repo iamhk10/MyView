@@ -47,6 +47,7 @@ import com.x.myview.ui.screens.ExerciseEditScreen
 import com.x.myview.ui.screens.HabitDetailScreen
 import com.x.myview.ui.screens.HabitEditScreen
 import com.x.myview.ui.screens.HabitsScreen
+import com.x.myview.ui.screens.HistoryScreen
 import com.x.myview.ui.screens.MoodScreen
 import com.x.myview.ui.screens.MoreScreen
 import com.x.myview.ui.screens.SettingsScreen
@@ -75,7 +76,7 @@ fun MyViewRoot(vm: MainViewModel) {
 
 /**
  * Screens that sit on top of the tabs are named with a short key: "settings", "steps", "sleep", "weight",
- * "mood", "backup", "habit:<id>", "habitedit:<id>" (0 = new), "ex:<id>", "exedit:<id>" (0 = new).
+ * "mood", "backup", "history:<metric>", "habit:<id>", "habitedit:<id>" (0 = new), "ex:<id>", "exedit:<id>" (0 = new).
  */
 @Composable
 private fun RootContent(vm: MainViewModel) {
@@ -152,7 +153,7 @@ private fun TabsHost(
                         0 -> TodayScreen(vm, onOpen = onOpen, onGoTab = onTab)
                         1 -> HabitsScreen(vm, onOpen = onOpen)
                         2 -> WorkoutScreen(vm, onOpen = onOpen)
-                        3 -> WaterScreen(vm)
+                        3 -> WaterScreen(vm, onOpen = onOpen)
                         else -> MoreScreen(vm, onOpen = onOpen)
                     }
                 }
@@ -180,7 +181,8 @@ private fun OverlayHost(vm: MainViewModel, key: String, open: (String) -> Unit, 
     ) {
         when (parts[0]) {
             "settings" -> SettingsScreen(vm, onBack = close)
-            "steps" -> StepsScreen(vm, onBack = close)
+            "steps" -> StepsScreen(vm, onBack = close, onHistory = { open("history:steps") })
+            "history" -> HistoryScreen(vm, start = parts.getOrNull(1) ?: "steps", onBack = close)
             "sleep" -> SleepScreen(vm, onBack = close)
             "weight" -> WeightScreen(vm, onBack = close)
             "mood" -> MoodScreen(vm, onBack = close)

@@ -19,6 +19,7 @@ import com.x.myview.data.db.HabitEntity
 import com.x.myview.data.db.WaterLogEntity
 import com.x.myview.reminders.Reminders
 import com.x.myview.util.todayEpochDay
+import com.x.myview.steps.StepService
 import com.x.myview.widget.WidgetUpdater
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -98,10 +99,15 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         settingsStore.update(change)
         Reminders.scheduleAllAsync(app)
         WidgetUpdater.updateAllAsync(app)
+        if (settingsStore.settings.value.liveSteps) StepService.startIfEnabled(app) else StepService.stop(app)
     }
 
     // ---- Steps ----
-    fun startSteps() = stepTracker.startLive()
+    fun startSteps() {
+        stepTracker.startLive()
+        StepService.startIfEnabled(app)
+    }
+
     fun stopSteps() = stepTracker.stopLive()
     fun stepsPermissionGranted(): Boolean = stepTracker.hasPermission()
 
