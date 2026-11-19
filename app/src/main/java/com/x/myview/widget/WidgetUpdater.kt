@@ -69,7 +69,11 @@ object WidgetUpdater {
         scope.launch { updateAll(app) }
     }
 
-    suspend fun updateAll(ctx: Context) {
+    /**
+     * [syncSteps] reads the step sensor once first, so the widget never shows an old step count even
+     * if nothing has been listening. The live step service passes false (it is already listening).
+     */
+    suspend fun updateAll(ctx: Context, syncSteps: Boolean = true) {
         val app = ctx.applicationContext
         val mgr = AppWidgetManager.getInstance(app)
         val habitIds = mgr.getAppWidgetIds(ComponentName(app, HabitsWidget::class.java))
@@ -77,6 +81,10 @@ object WidgetUpdater {
         val summaryIds = mgr.getAppWidgetIds(ComponentName(app, SummaryWidget::class.java))
         if (habitIds.isEmpty() && waterIds.isEmpty() && summaryIds.isEmpty()) return
 
+        if (syncSteps && summaryIds.isNotEmpty()) {
+            val tracker = (app as MyViewApp).container.stepTracker
+            if (tracker.isSupported && !tracker.isLive) tracker.readOnce(1500)
+        }
         val snap = load(app)
         if (habitIds.isNotEmpty()) mgr.updateAppWidget(habitIds, habitsViews(app, snap))
         if (waterIds.isNotEmpty()) mgr.updateAppWidget(waterIds, waterViews(app, snap))
