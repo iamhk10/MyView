@@ -31,5 +31,6 @@ class BootReceiver : BroadcastReceiver() {
         val app = context.applicationContext
         Reminders.scheduleAllAsync(app)
         WidgetUpdater.updateAllAsync(app)
+        com.x.myview.steps.StepService.startIfEnabled(app)
     }
 }

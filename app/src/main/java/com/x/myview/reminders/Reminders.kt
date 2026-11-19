@@ -39,6 +39,7 @@ object Reminders {
     const val CH_HABITS = "habits"
     const val CH_WATER = "water"
     const val CH_WORKOUT = "workout"
+    const val CH_STEPS = "steps"
 
     const val ACTION_FIRE = "com.x.myview.action.FIRE"
     const val ACTION_HABIT_DONE = "com.x.myview.action.HABIT_DONE"
@@ -66,6 +67,7 @@ object Reminders {
         nm.createNotificationChannel(NotificationChannel(CH_HABITS, "Habit reminders", NotificationManager.IMPORTANCE_DEFAULT))
         nm.createNotificationChannel(NotificationChannel(CH_WATER, "Water reminders", NotificationManager.IMPORTANCE_DEFAULT))
         nm.createNotificationChannel(NotificationChannel(CH_WORKOUT, "Workout reminder", NotificationManager.IMPORTANCE_DEFAULT))
+        nm.createNotificationChannel(NotificationChannel(CH_STEPS, "Live step count", NotificationManager.IMPORTANCE_LOW))
     }
 
     // ---------- Scheduling ----------
