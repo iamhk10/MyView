@@ -58,3 +58,26 @@ data class WaterLogEntity(
     val ml: Int,
     val createdAt: Long,
 )
+
+/** Sleep for the night ending on [day]. [quality] is 1..5 stars, 0 = not rated. */
+@Entity(tableName = "sleep_logs")
+data class SleepLogEntity(
+    @PrimaryKey val day: Long,
+    val minutes: Int,
+    val quality: Int,
+)
+
+/** Body weight on [day], always stored in kilograms. */
+@Entity(tableName = "weight_logs")
+data class WeightLogEntity(
+    @PrimaryKey val day: Long,
+    val kg: Float,
+)
+
+/** Mood on [day]: 1 (awful) .. 5 (great), with an optional note. */
+@Entity(tableName = "mood_logs")
+data class MoodLogEntity(
+    @PrimaryKey val day: Long,
+    val mood: Int,
+    val note: String,
+)

@@ -7,6 +7,8 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.RoomDatabase
 import androidx.room.Update
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -93,6 +95,82 @@ interface WaterDao {
     suspend fun deleteLog(id: Long)
 }
 
+@Dao
+interface SleepDao {
+    @Query("SELECT * FROM sleep_logs ORDER BY day")
+    fun observe(): Flow<List<SleepLogEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(log: SleepLogEntity)
+
+    @Query("DELETE FROM sleep_logs WHERE day = :day")
+    suspend fun delete(day: Long)
+}
+
+@Dao
+interface WeightDao {
+    @Query("SELECT * FROM weight_logs ORDER BY day")
+    fun observe(): Flow<List<WeightLogEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(log: WeightLogEntity)
+
+    @Query("DELETE FROM weight_logs WHERE day = :day")
+    suspend fun delete(day: Long)
+}
+
+@Dao
+interface MoodDao {
+    @Query("SELECT * FROM mood_logs ORDER BY day")
+    fun observe(): Flow<List<MoodLogEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(log: MoodLogEntity)
+
+    @Query("DELETE FROM mood_logs WHERE day = :day")
+    suspend fun delete(day: Long)
+}
+
+/** Whole-table reads and writes used by backup and restore. */
+@Dao
+interface BackupDao {
+    @Query("SELECT * FROM habits") suspend fun habits(): List<HabitEntity>
+    @Query("SELECT * FROM habit_logs") suspend fun habitLogs(): List<HabitLogEntity>
+    @Query("SELECT * FROM exercises") suspend fun exercises(): List<ExerciseEntity>
+    @Query("SELECT * FROM exercise_logs") suspend fun exerciseLogs(): List<ExerciseLogEntity>
+    @Query("SELECT * FROM water_logs") suspend fun water(): List<WaterLogEntity>
+    @Query("SELECT * FROM sleep_logs") suspend fun sleep(): List<SleepLogEntity>
+    @Query("SELECT * FROM weight_logs") suspend fun weight(): List<WeightLogEntity>
+    @Query("SELECT * FROM mood_logs") suspend fun mood(): List<MoodLogEntity>
+
+    @Query("DELETE FROM habits") suspend fun clearHabits()
+    @Query("DELETE FROM habit_logs") suspend fun clearHabitLogs()
+    @Query("DELETE FROM exercises") suspend fun clearExercises()
+    @Query("DELETE FROM exercise_logs") suspend fun clearExerciseLogs()
+    @Query("DELETE FROM water_logs") suspend fun clearWater()
+    @Query("DELETE FROM sleep_logs") suspend fun clearSleep()
+    @Query("DELETE FROM weight_logs") suspend fun clearWeight()
+    @Query("DELETE FROM mood_logs") suspend fun clearMood()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putHabits(list: List<HabitEntity>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putHabitLogs(list: List<HabitLogEntity>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putExercises(list: List<ExerciseEntity>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putExerciseLogs(list: List<ExerciseLogEntity>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putWater(list: List<WaterLogEntity>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putSleep(list: List<SleepLogEntity>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putWeight(list: List<WeightLogEntity>)
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putMood(list: List<MoodLogEntity>)
+}
+
+/** Version 1 -> 2: adds the sleep, weight and mood tables. Existing data is untouched. */
+val MIGRATION_1_2 = object : Migration(1, 2) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS `sleep_logs` (`day` INTEGER NOT NULL, `minutes` INTEGER NOT NULL, `quality` INTEGER NOT NULL, PRIMARY KEY(`day`))")
+        db.execSQL("CREATE TABLE IF NOT EXISTS `weight_logs` (`day` INTEGER NOT NULL, `kg` REAL NOT NULL, PRIMARY KEY(`day`))")
+        db.execSQL("CREATE TABLE IF NOT EXISTS `mood_logs` (`day` INTEGER NOT NULL, `mood` INTEGER NOT NULL, `note` TEXT NOT NULL, PRIMARY KEY(`day`))")
+    }
+}
+
 @Database(
     entities = [
         HabitEntity::class,
@@ -100,12 +178,19 @@ interface WaterDao {
         ExerciseEntity::class,
         ExerciseLogEntity::class,
         WaterLogEntity::class,
+        SleepLogEntity::class,
+        WeightLogEntity::class,
+        MoodLogEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 abstract class MyViewDatabase : RoomDatabase() {
     abstract fun habitDao(): HabitDao
     abstract fun exerciseDao(): ExerciseDao
     abstract fun waterDao(): WaterDao
+    abstract fun sleepDao(): SleepDao
+    abstract fun weightDao(): WeightDao
+    abstract fun moodDao(): MoodDao
+    abstract fun backupDao(): BackupDao
 }
