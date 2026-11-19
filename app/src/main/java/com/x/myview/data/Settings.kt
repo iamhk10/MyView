@@ -7,6 +7,22 @@ import kotlinx.coroutines.flow.asStateFlow
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK, AMOLED }
 
+enum class FontOption(val label: String) {
+    DEFAULT("Default"),
+    MEDIUM("Medium"),
+    CONDENSED("Condensed"),
+    LIGHT("Light"),
+    SERIF("Serif"),
+    MONO("Mono"),
+}
+
+enum class TextSize(val label: String, val scale: Float) {
+    SMALL("Small", 0.9f),
+    NORMAL("Normal", 1.0f),
+    LARGE("Large", 1.12f),
+    XL("Extra large", 1.25f),
+}
+
 data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val accentIndex: Int = 0,
@@ -24,6 +40,17 @@ data class AppSettings(
     val workoutReminder: Boolean = false,
     /** Workout reminder time as minutes after midnight. */
     val workoutReminderMin: Int = 18 * 60,
+    val fontOption: FontOption = FontOption.DEFAULT,
+    val textSize: TextSize = TextSize.NORMAL,
+    /** Sleep goal in minutes. */
+    val sleepGoalMin: Int = 8 * 60,
+    /** Show weight in pounds instead of kilograms (data is always stored in kg). */
+    val useLb: Boolean = false,
+    /** Weight goal in kg, 0 = no goal. */
+    val weightGoalKg: Float = 0f,
+    val haptics: Boolean = true,
+    /** Confetti when a daily goal is completed. */
+    val celebrate: Boolean = true,
 )
 
 /** Small settings store on top of SharedPreferences. Exposes the settings as a StateFlow. */
@@ -47,6 +74,13 @@ class SettingsStore(context: Context) {
             waterIntervalH = prefs.getInt("waterIntervalH", 2).coerceIn(1, 6),
             workoutReminder = prefs.getBoolean("workoutReminder", false),
             workoutReminderMin = prefs.getInt("workoutReminderMin", 18 * 60).coerceIn(0, 1439),
+            fontOption = FontOption.values().getOrElse(prefs.getInt("fontOption", 0)) { FontOption.DEFAULT },
+            textSize = TextSize.values().getOrElse(prefs.getInt("textSize", 1)) { TextSize.NORMAL },
+            sleepGoalMin = prefs.getInt("sleepGoalMin", 480).coerceIn(240, 720),
+            useLb = prefs.getBoolean("useLb", false),
+            weightGoalKg = prefs.getFloat("weightGoalKg", 0f).coerceIn(0f, 500f),
+            haptics = prefs.getBoolean("haptics", true),
+            celebrate = prefs.getBoolean("celebrate", true),
         )
     }
 
@@ -65,6 +99,13 @@ class SettingsStore(context: Context) {
             .putInt("waterIntervalH", next.waterIntervalH)
             .putBoolean("workoutReminder", next.workoutReminder)
             .putInt("workoutReminderMin", next.workoutReminderMin)
+            .putInt("fontOption", next.fontOption.ordinal)
+            .putInt("textSize", next.textSize.ordinal)
+            .putInt("sleepGoalMin", next.sleepGoalMin)
+            .putBoolean("useLb", next.useLb)
+            .putFloat("weightGoalKg", next.weightGoalKg)
+            .putBoolean("haptics", next.haptics)
+            .putBoolean("celebrate", next.celebrate)
             .apply()
     }
 }

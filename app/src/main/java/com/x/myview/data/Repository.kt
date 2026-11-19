@@ -6,7 +6,11 @@ import com.x.myview.data.db.HabitEntity
 import com.x.myview.data.db.HabitLogEntity
 import com.x.myview.data.db.KIND_REPS
 import com.x.myview.data.db.KIND_TIME
+import com.x.myview.data.db.MoodLogEntity
 import com.x.myview.data.db.MyViewDatabase
+import com.x.myview.data.db.SleepLogEntity
+import com.x.myview.data.db.WeightLogEntity
+import androidx.room.withTransaction
 import com.x.myview.data.db.WaterLogEntity
 import com.x.myview.util.todayEpochDay
 import kotlinx.coroutines.flow.Flow
@@ -67,6 +71,48 @@ class Repository(private val db: MyViewDatabase) {
     }
 
     suspend fun deleteWater(id: Long) = waterDao.deleteLog(id)
+
+    // ---- Sleep, weight, mood ----
+    private val sleepDao = db.sleepDao()
+    private val weightDao = db.weightDao()
+    private val moodDao = db.moodDao()
+    private val backupDao = db.backupDao()
+
+    val sleep: Flow<List<SleepLogEntity>> = sleepDao.observe()
+    val weights: Flow<List<WeightLogEntity>> = weightDao.observe()
+    val moods: Flow<List<MoodLogEntity>> = moodDao.observe()
+
+    suspend fun saveSleep(day: Long, minutes: Int, quality: Int) = sleepDao.upsert(SleepLogEntity(day, minutes, quality))
+    suspend fun deleteSleep(day: Long) = sleepDao.delete(day)
+    suspend fun saveWeight(day: Long, kg: Float) = weightDao.upsert(WeightLogEntity(day, kg))
+    suspend fun deleteWeight(day: Long) = weightDao.delete(day)
+    suspend fun saveMood(day: Long, mood: Int, note: String) = moodDao.upsert(MoodLogEntity(day, mood, note))
+    suspend fun deleteMood(day: Long) = moodDao.delete(day)
+
+    // ---- Backup ----
+    suspend fun exportData(): BackupData = BackupData(
+        habits = backupDao.habits(),
+        habitLogs = backupDao.habitLogs(),
+        exercises = backupDao.exercises(),
+        exerciseLogs = backupDao.exerciseLogs(),
+        water = backupDao.water(),
+        sleep = backupDao.sleep(),
+        weight = backupDao.weight(),
+        mood = backupDao.mood(),
+    )
+
+    /** Replaces everything with [d] in one transaction: either all of it is restored or nothing changes. */
+    suspend fun importData(d: BackupData) {
+        db.withTransaction {
+            backupDao.clearHabits(); backupDao.clearHabitLogs()
+            backupDao.clearExercises(); backupDao.clearExerciseLogs()
+            backupDao.clearWater(); backupDao.clearSleep(); backupDao.clearWeight(); backupDao.clearMood()
+            backupDao.putHabits(d.habits); backupDao.putHabitLogs(d.habitLogs)
+            backupDao.putExercises(d.exercises); backupDao.putExerciseLogs(d.exerciseLogs)
+            backupDao.putWater(d.water); backupDao.putSleep(d.sleep)
+            backupDao.putWeight(d.weight); backupDao.putMood(d.mood)
+        }
+    }
 
     // ---- First run ----
     /** Fills the exercise list the first time the app runs. */
