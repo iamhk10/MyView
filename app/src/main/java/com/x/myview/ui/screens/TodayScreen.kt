@@ -2,6 +2,7 @@ package com.x.myview.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,9 +16,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.TaskAlt
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -26,10 +30,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.x.myview.data.db.KIND_TIME
 import com.x.myview.domain.currentStreak
 import com.x.myview.domain.exerciseTotal
 import com.x.myview.domain.scheduledHabits
@@ -37,20 +42,42 @@ import com.x.myview.domain.waterTotal
 import com.x.myview.domain.workoutProgress
 import com.x.myview.ui.MainViewModel
 import com.x.myview.ui.components.CircleIconButton
+import com.x.myview.ui.components.GradientCard
 import com.x.myview.ui.components.MiniBar
 import com.x.myview.ui.components.MvCard
 import com.x.myview.ui.components.ProgressRing
 import com.x.myview.ui.components.ScreenHeader
 import com.x.myview.ui.components.SectionTitle
+import com.x.myview.ui.components.StatTile
+import com.x.myview.ui.components.iconFor
+import com.x.myview.ui.components.rememberAnimatedInt
+import com.x.myview.ui.components.staggerIn
+import com.x.myview.ui.theme.StepsTeal
 import com.x.myview.ui.theme.WaterBlue
 import com.x.myview.ui.theme.bottomInset
 import com.x.myview.ui.theme.itemColor
 import com.x.myview.util.formatDuration
 import com.x.myview.util.formatMl
+import com.x.myview.util.formatSleep
 import com.x.myview.util.formatSteps
-import com.x.myview.ui.theme.StepsTeal
 import com.x.myview.util.niceDate
-import com.x.myview.data.db.KIND_TIME
+import java.time.LocalTime
+
+private fun greeting(): String = when (LocalTime.now().hour) {
+    in 5..11 -> "Good morning"
+    in 12..16 -> "Good afternoon"
+    in 17..20 -> "Good evening"
+    else -> "Hey, night owl"
+}
+
+private fun scoreMessage(score: Float, goals: Int): String = when {
+    goals == 0 -> "Add a habit or log some water to begin."
+    score >= 1f -> "Every goal done. Brilliant!"
+    score >= 0.66f -> "Almost there, keep going."
+    score >= 0.33f -> "Good progress today."
+    score > 0f -> "A good start. One step at a time."
+    else -> "A fresh day. Let's get started."
+}
 
 @Composable
 fun TodayScreen(vm: MainViewModel, onOpen: (String) -> Unit, onGoTab: (Int) -> Unit) {
@@ -62,6 +89,9 @@ fun TodayScreen(vm: MainViewModel, onOpen: (String) -> Unit, onGoTab: (Int) -> U
     val exLogs by vm.exerciseLogs.collectAsState()
     val water by vm.waterLogs.collectAsState()
     val steps by vm.steps.collectAsState()
+    val sleepLogs by vm.sleepLogs.collectAsState()
+    val moods by vm.moodLogs.collectAsState()
+
     val stepsToday = steps[today] ?: 0
     var stepsGranted by remember { mutableStateOf(vm.stepsPermissionGranted()) }
     val askSteps = rememberPermissionRequest(android.Manifest.permission.ACTIVITY_RECOGNITION) { ok ->
@@ -76,57 +106,148 @@ fun TodayScreen(vm: MainViewModel, onOpen: (String) -> Unit, onGoTab: (Int) -> U
     val waterProgress = waterMl.toFloat() / settings.waterGoalMl.coerceAtLeast(1)
     val workout = remember(exercises, exLogs, today) { workoutProgress(exercises, exLogs, today) }
     val workedOut = remember(exercises, exLogs, today) { exercises.filter { exerciseTotal(exLogs, it.id, today) > 0 } }
+    val stepsProgress = stepsToday.toFloat() / settings.stepGoal.coerceAtLeast(1)
+    val sleepToday = sleepLogs.firstOrNull { it.day == today }
+    val moodToday = moods.firstOrNull { it.day == today }
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(bottom = bottomInset())) {
+    // The daily score is the average of every goal that applies today (each capped at 100%).
+    val goals = buildList {
+        if (planned.isNotEmpty()) add(habitProgress.coerceAtMost(1f))
+        add(waterProgress.coerceAtMost(1f))
+        add(workout.coerceAtMost(1f))
+        if (vm.stepsSupported && stepsGranted) add(stepsProgress.coerceAtMost(1f))
+    }
+    val score = if (goals.isEmpty()) 0f else goals.average().toFloat()
+    val completeGoals = goals.count { it >= 1f }
+    val scorePercent = rememberAnimatedInt((score * 100).toInt())
+
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = bottomInset()),
+    ) {
         item {
-            ScreenHeader("Today", niceDate(today)) {
+            ScreenHeader(greeting(), niceDate(today)) {
                 CircleIconButton(Icons.Rounded.Settings, "Settings", { onOpen("settings") })
             }
         }
+
         item {
-            MvCard(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+            GradientCard(
+                Modifier
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                    .staggerIn(0),
+            ) {
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 18.dp, horizontal = 8.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
+                        .padding(20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    if (vm.stepsSupported) {
-                        SummaryRing("Steps", formatSteps(stepsToday), stepsToday.toFloat() / settings.stepGoal.coerceAtLeast(1), StepsTeal)
+                    ProgressRing(score, size = 118.dp, stroke = 13.dp) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("$scorePercent%", fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                            Text("score", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
-                    SummaryRing("Habits", "$doneCount/${planned.size}", habitProgress, MaterialTheme.colorScheme.primary)
-                    SummaryRing("Water", formatMl(waterMl), waterProgress, WaterBlue)
-                    SummaryRing("Workout", if (workedOut.isEmpty()) "-" else "${workedOut.size} done", workout, Color(0xFFFF9A3D))
+                    Spacer(Modifier.width(18.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("Daily score", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            scoreMessage(score, goals.size),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            "$completeGoals of ${goals.size} goals complete",
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                 }
             }
         }
 
-        if (vm.stepsSupported) {
+        item {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                    .staggerIn(1),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                StatTile(
+                    Icons.Rounded.TaskAlt, MaterialTheme.colorScheme.primary,
+                    "$doneCount/${planned.size}", "Habits", Modifier.weight(1f),
+                    progress = habitProgress, onClick = { onGoTab(1) },
+                )
+                StatTile(
+                    iconFor("water"), WaterBlue,
+                    formatMl(rememberAnimatedInt(waterMl)), "Water", Modifier.weight(1f),
+                    progress = waterProgress, onClick = { onGoTab(3) },
+                )
+            }
+        }
+        item {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                    .staggerIn(2),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                StatTile(
+                    iconFor("fitness"), itemColor(6),
+                    if (workedOut.isEmpty()) "-" else "${workedOut.size} done", "Workout", Modifier.weight(1f),
+                    progress = workout, onClick = { onGoTab(2) },
+                )
+                if (vm.stepsSupported) {
+                    StatTile(
+                        iconFor("walk"), StepsTeal,
+                        formatSteps(rememberAnimatedInt(stepsToday)), "Steps", Modifier.weight(1f),
+                        progress = stepsProgress, onClick = { onOpen("steps") },
+                    )
+                } else {
+                    StatTile(
+                        iconFor("sleep"), itemColor(0),
+                        if (sleepToday == null) "-" else formatSleep(sleepToday.minutes), "Sleep", Modifier.weight(1f),
+                        progress = (sleepToday?.minutes ?: 0).toFloat() / settings.sleepGoalMin.coerceAtLeast(1),
+                        onClick = { onOpen("sleep") },
+                    )
+                }
+            }
+        }
+
+        if (vm.stepsSupported && !stepsGranted) {
             item {
-                MvCard(
-                    Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
-                    onClick = { onOpen("steps") },
-                ) {
-                    Column(Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                "${formatSteps(stepsToday)} steps",
-                                Modifier.weight(1f),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            if (!stepsGranted) {
-                                androidx.compose.material3.FilledTonalButton(onClick = askSteps) { Text("Allow") }
-                            } else {
-                                Text(
-                                    "goal ${formatSteps(settings.stepGoal)}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        MiniBar(stepsToday.toFloat() / settings.stepGoal.coerceAtLeast(1), StepsTeal)
+                MvCard(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "Allow step counting to see your steps here.",
+                            Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        FilledTonalButton(onClick = askSteps) { Text("Allow") }
+                    }
+                }
+            }
+        }
+
+        item { SectionTitle("How are you feeling?") }
+        item {
+            MvCard(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+                    MoodPicker(moodToday?.mood ?: 0, { m -> vm.saveMood(today, m, moodToday?.note ?: "") })
+                    TextButton(onClick = { onOpen("mood") }, modifier = Modifier.align(Alignment.End)) {
+                        Text(if (moodToday == null) "Open mood diary" else "Add a note")
                     }
                 }
             }
@@ -165,7 +286,7 @@ fun TodayScreen(vm: MainViewModel, onOpen: (String) -> Unit, onGoTab: (Int) -> U
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                         )
-                        androidx.compose.material3.FilledTonalButton(onClick = { vm.addWater(settings.glassMl) }) {
+                        FilledTonalButton(onClick = { vm.addWater(settings.glassMl) }) {
                             Icon(Icons.Rounded.Add, null, Modifier.size(18.dp))
                             Spacer(Modifier.width(4.dp))
                             Text("${settings.glassMl} ml")
@@ -190,11 +311,11 @@ fun TodayScreen(vm: MainViewModel, onOpen: (String) -> Unit, onGoTab: (Int) -> U
                             .padding(horizontal = 14.dp, vertical = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        IconBadge(e.icon, itemColor(1))
+                        IconBadge(e.icon, itemColor(6))
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Text(e.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                            MiniBar(total.toFloat() / e.dailyGoal.coerceAtLeast(1), itemColor(1), Modifier.padding(top = 6.dp))
+                            MiniBar(total.toFloat() / e.dailyGoal.coerceAtLeast(1), itemColor(6), Modifier.padding(top = 6.dp))
                         }
                         Spacer(Modifier.width(12.dp))
                         Text(
@@ -210,23 +331,6 @@ fun TodayScreen(vm: MainViewModel, onOpen: (String) -> Unit, onGoTab: (Int) -> U
 }
 
 @Composable
-private fun SummaryRing(label: String, value: String, progress: Float, color: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        ProgressRing(progress, size = 76.dp, stroke = 8.dp, color = color) {
-            Text(
-                value,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                maxLines = 1,
-            )
-        }
-        Spacer(Modifier.height(6.dp))
-        Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-@Composable
 fun EmptyHint(text: String, action: String?, onAction: () -> Unit) {
     MvCard(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
         Row(
@@ -237,7 +341,7 @@ fun EmptyHint(text: String, action: String?, onAction: () -> Unit) {
         ) {
             Text(text, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             if (action != null) {
-                androidx.compose.material3.TextButton(onClick = onAction) { Text(action) }
+                TextButton(onClick = onAction) { Text(action) }
             }
         }
     }

@@ -10,8 +10,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
@@ -35,7 +36,10 @@ import com.x.myview.ui.components.MvCard
 import com.x.myview.ui.components.ProgressRing
 import com.x.myview.ui.components.ScreenHeader
 import com.x.myview.ui.components.SectionTitle
+import com.x.myview.ui.components.WaterWave
 import com.x.myview.ui.components.WeekBars
+import com.x.myview.ui.components.rememberAnimatedInt
+import com.x.myview.ui.components.staggerIn
 import com.x.myview.ui.theme.WaterBlue
 import com.x.myview.ui.theme.bottomInset
 import com.x.myview.util.formatMl
@@ -68,14 +72,21 @@ fun WaterScreen(vm: MainViewModel) {
                         .padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    ProgressRing(total.toFloat() / goal.coerceAtLeast(1), size = 170.dp, stroke = 14.dp, color = WaterBlue) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(formatMl(total), fontSize = 30.sp, fontWeight = FontWeight.Bold)
-                            Text(
-                                "of ${formatMl(goal)}",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                    Box(Modifier.size(196.dp), contentAlignment = Alignment.Center) {
+                        WaterWave(
+                            progress = total.toFloat() / goal.coerceAtLeast(1),
+                            color = WaterBlue,
+                            modifier = Modifier.size(168.dp),
+                        )
+                        ProgressRing(total.toFloat() / goal.coerceAtLeast(1), size = 196.dp, stroke = 12.dp, color = WaterBlue) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(formatMl(rememberAnimatedInt(total)), fontSize = 30.sp, fontWeight = FontWeight.Bold)
+                                Text(
+                                    "of ${formatMl(goal)}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+                                )
+                            }
                         }
                     }
                     Spacer(Modifier.height(6.dp))
@@ -123,8 +134,8 @@ fun WaterScreen(vm: MainViewModel) {
         if (todayLogs.isEmpty()) {
             item { EmptyHint("Nothing logged yet. Have a glass of water.", null) { } }
         }
-        items(todayLogs, key = { it.id }) { l ->
-            MvCard(Modifier.padding(horizontal = 16.dp, vertical = 3.dp)) {
+        itemsIndexed(todayLogs, key = { _, l -> l.id }) { i, l ->
+            MvCard(Modifier.padding(horizontal = 16.dp, vertical = 3.dp).staggerIn(i)) {
                 Row(
                     Modifier
                         .fillMaxWidth()

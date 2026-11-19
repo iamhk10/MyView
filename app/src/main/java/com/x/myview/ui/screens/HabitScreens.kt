@@ -17,7 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -53,7 +53,9 @@ import com.x.myview.ui.MainViewModel
 import com.x.myview.ui.components.CheckCircle
 import com.x.myview.ui.components.CircleIconButton
 import com.x.myview.ui.components.MvCard
+import com.x.myview.ui.components.ProgressRing
 import com.x.myview.ui.components.ScreenHeader
+import com.x.myview.ui.components.staggerIn
 import com.x.myview.ui.components.SectionTitle
 import com.x.myview.ui.theme.bottomInset
 import com.x.myview.ui.theme.itemColor
@@ -78,10 +80,46 @@ fun HabitsScreen(vm: MainViewModel, onOpen: (String) -> Unit) {
         }
         if (habits.isEmpty()) {
             item { EmptyHint("Build a streak. Add your first habit.", "Add habit") { onOpen("habitedit:0") } }
+        } else {
+            item {
+                MvCard(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        val monday = weekStart(today)
+                        for (k in 0 until 7) {
+                            val d = monday + k
+                            val planned = habits.filter { isScheduled(it.days, d) }
+                            val hit = planned.count { d in (done[it.id] ?: emptySet()) }
+                            val fraction = if (planned.isEmpty() || d > today) 0f else hit.toFloat() / planned.size
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                ProgressRing(fraction, size = 38.dp, stroke = 5.dp) {
+                                    Text(
+                                        com.x.myview.util.oneLetterDay(d),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = if (d == today) FontWeight.Bold else FontWeight.Normal,
+                                    )
+                                }
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    "${java.time.LocalDate.ofEpochDay(d).dayOfMonth}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (d == today) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = if (d == today) FontWeight.Bold else FontWeight.Normal,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
-        items(habits, key = { it.id }) { h ->
+        itemsIndexed(habits, key = { _, h -> h.id }) { i, h ->
             val days = done[h.id] ?: emptySet()
             HabitRow(
+                modifier = Modifier.staggerIn(i),
                 habit = h,
                 done = today in days,
                 streak = currentStreak(h.days, days, today),

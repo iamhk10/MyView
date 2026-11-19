@@ -184,3 +184,13 @@ fun TimeStepper(minutes: Int, onChange: (Int) -> Unit) {
         )
     }
 }
+
+/** Chips that wrap onto the next line instead of running off the screen. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@Composable
+fun ChipFlow(content: @Composable () -> Unit) {
+    androidx.compose.foundation.layout.FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) { content() }
+}

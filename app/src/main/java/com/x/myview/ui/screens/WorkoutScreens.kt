@@ -17,7 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -69,6 +69,7 @@ import com.x.myview.ui.components.ProgressRing
 import com.x.myview.ui.components.ScreenHeader
 import com.x.myview.ui.components.SectionTitle
 import com.x.myview.ui.components.WeekBars
+import com.x.myview.ui.components.staggerIn
 import com.x.myview.ui.theme.bottomInset
 import com.x.myview.ui.theme.itemColor
 import com.x.myview.util.formatDuration
@@ -109,10 +110,10 @@ fun WorkoutScreen(vm: MainViewModel, onOpen: (String) -> Unit) {
             }
         }
         item { SectionTitle("Exercises") }
-        items(exercises, key = { it.id }) { e ->
+        itemsIndexed(exercises, key = { _, e -> e.id }) { i, e ->
             val total = exerciseTotal(logs, e.id, today)
             val color = itemColor(if (total >= e.dailyGoal) 4 else 6)
-            MvCard(Modifier.padding(horizontal = 16.dp, vertical = 4.dp), onClick = { onOpen("ex:${e.id}") }) {
+            MvCard(Modifier.padding(horizontal = 16.dp, vertical = 4.dp).staggerIn(i), onClick = { onOpen("ex:${e.id}") }) {
                 Row(
                     Modifier
                         .fillMaxWidth()
