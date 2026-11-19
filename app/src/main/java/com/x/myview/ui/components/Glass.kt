@@ -98,13 +98,15 @@ fun CircleIconButton(
     }
 }
 
-/** Base colour with a soft glow of the accent at the top. Drawn in one pass, no blur. */
+/** Base colour with soft glows of the accent colour (top) and a second tint (bottom right). One draw pass, no blur. */
 @Composable
 fun Modifier.appBackground(): Modifier {
     val bg = MaterialTheme.colorScheme.background
     val tint = MaterialTheme.colorScheme.primary
+    val second = MaterialTheme.colorScheme.tertiary
     val dark = LocalIsDark.current
     val strength = if (dark) 0.30f else 0.22f
+    val strength2 = if (dark) 0.16f else 0.12f
     return this.drawBehind {
         drawRect(bg)
         drawRect(
@@ -112,6 +114,13 @@ fun Modifier.appBackground(): Modifier {
                 colors = listOf(tint.copy(alpha = strength), Color.Transparent),
                 center = Offset(size.width * 0.5f, 0f),
                 radius = size.width * 1.15f,
+            ),
+        )
+        drawRect(
+            Brush.radialGradient(
+                colors = listOf(second.copy(alpha = strength2), Color.Transparent),
+                center = Offset(size.width * 1.0f, size.height * 0.95f),
+                radius = size.width * 1.0f,
             ),
         )
     }
