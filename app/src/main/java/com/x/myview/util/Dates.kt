@@ -86,3 +86,25 @@ fun formatHour(hour24: Int): String {
     val h12 = if (hour24 % 12 == 0) 12 else hour24 % 12
     return "$h12 ${if (hour24 < 12) "AM" else "PM"}"
 }
+
+/** 450 -> "7h 30m", 480 -> "8h", 45 -> "45m". */
+fun formatSleep(minutes: Int): String {
+    val h = minutes / 60
+    val m = minutes % 60
+    return when {
+        h == 0 -> "${m}m"
+        m == 0 -> "${h}h"
+        else -> "${h}h ${m}m"
+    }
+}
+
+const val KG_PER_LB = 0.45359237f
+
+/** Kilograms as the number shown to the user (kg or lb). */
+fun kgToUnit(kg: Float, lb: Boolean): Float = if (lb) kg / KG_PER_LB else kg
+
+fun unitToKg(value: Float, lb: Boolean): Float = if (lb) value * KG_PER_LB else value
+
+/** 72.4f -> "72.4 kg" or "159.6 lb". */
+fun formatWeight(kg: Float, lb: Boolean): String =
+    String.format(Locale.US, "%.1f %s", kgToUnit(kg, lb), if (lb) "lb" else "kg")
