@@ -14,6 +14,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -36,7 +37,7 @@ import com.x.myview.util.formatSteps
 import java.util.Locale
 
 @Composable
-fun StepsScreen(vm: MainViewModel, onBack: () -> Unit) {
+fun StepsScreen(vm: MainViewModel, onBack: () -> Unit, onHistory: () -> Unit = {}) {
     val today by vm.today.collectAsState()
     val settings by vm.settings.collectAsState()
     val steps by vm.steps.collectAsState()
@@ -128,9 +129,15 @@ fun StepsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     )
                 }
             }
+            OutlinedButton(
+                onClick = onHistory,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+            ) { Text("Full history, highest and lowest") }
             Box(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
                 Text(
-                    "Steps are counted by your phone's own sensor, even when the app is closed. MyView adds them up every ~15 minutes. Counting starts from the moment you first allow the permission. Distance and calories are rough estimates.",
+                    "Steps are counted by your phone's own sensor, even when the app is closed. With "Live step counting" on (Settings) the count and widget update within seconds; otherwise MyView adds them up every ~15 minutes. Counting starts from the moment you first allow the permission. Distance and calories are rough estimates.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

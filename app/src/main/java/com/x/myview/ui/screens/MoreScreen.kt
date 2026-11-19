@@ -22,6 +22,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -73,37 +74,43 @@ fun MoreScreen(vm: MainViewModel, onOpen: (String) -> Unit) {
         item {
             ScreenHeader("More", "Body, mind and app settings")
         }
+        item {
+            MoreRow(
+                Icons.Rounded.BarChart, MaterialTheme.colorScheme.primary, "Stats and history",
+                "Day-by-day charts with highest and lowest", { onOpen("history:steps") }, Modifier.staggerIn(0),
+            )
+        }
         if (vm.stepsSupported) {
             item {
-                MoreRow(iconFor("walk"), StepsTeal, "Steps", "${formatSteps(steps[today] ?: 0)} steps today", { onOpen("steps") }, Modifier.staggerIn(0))
+                MoreRow(iconFor("walk"), StepsTeal, "Steps", "${formatSteps(steps[today] ?: 0)} steps today", { onOpen("steps") }, Modifier.staggerIn(1))
             }
         }
         item {
             MoreRow(
                 iconFor("sleep"), itemColor(0), "Sleep",
                 if (lastSleep == null) "Log how long you slept" else "Last: ${formatSleep(lastSleep.minutes)}",
-                { onOpen("sleep") }, Modifier.staggerIn(1),
+                { onOpen("sleep") }, Modifier.staggerIn(2),
             )
         }
         item {
             MoreRow(
                 iconFor("heart"), itemColor(3), "Weight",
                 if (latestWeight == null) "Track your weight trend" else "Latest: ${formatWeight(latestWeight.kg, settings.useLb)}",
-                { onOpen("weight") }, Modifier.staggerIn(2),
+                { onOpen("weight") }, Modifier.staggerIn(3),
             )
         }
         item {
             MoreRow(
                 iconFor("spa"), itemColor(1), "Mood diary",
                 if (moodToday == null) "How are you feeling?" else "Today: ${Moods.emoji(moodToday.mood)} ${Moods.label(moodToday.mood)}",
-                { onOpen("mood") }, Modifier.staggerIn(3),
+                { onOpen("mood") }, Modifier.staggerIn(4),
             )
         }
         item {
-            MoreRow(iconFor("money"), itemColor(5), "Backup and restore", "Save your data to a file, or bring it back", { onOpen("backup") }, Modifier.staggerIn(4))
+            MoreRow(iconFor("money"), itemColor(5), "Backup and restore", "Save your data to a file, or bring it back", { onOpen("backup") }, Modifier.staggerIn(5))
         }
         item {
-            MoreRow(Icons.Rounded.Settings, itemColor(2), "Settings", "Theme, fonts, goals and reminders", { onOpen("settings") }, Modifier.staggerIn(5))
+            MoreRow(Icons.Rounded.Settings, itemColor(2), "Settings", "Theme, fonts, goals and reminders", { onOpen("settings") }, Modifier.staggerIn(6))
         }
     }
 }

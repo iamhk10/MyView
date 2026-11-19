@@ -151,6 +151,9 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                         { vm.updateSettings { it.copy(glassMl = (it.glassMl - 50).coerceAtLeast(50)) } },
                         { vm.updateSettings { it.copy(glassMl = (it.glassMl + 50).coerceAtMost(1500)) } })
                     if (vm.stepsSupported) {
+                        SwitchRow("Live step counting", "Updates steps and the widget within seconds, even with the app closed. Shows one quiet notification.", s.liveSteps) { v ->
+                            vm.updateSettings { it.copy(liveSteps = v) }
+                        }
                         StepperRow("Steps", formatSteps(s.stepGoal),
                             { vm.updateSettings { it.copy(stepGoal = (it.stepGoal - 500).coerceAtLeast(1000)) } },
                             { vm.updateSettings { it.copy(stepGoal = (it.stepGoal + 500).coerceAtMost(50000)) } })
@@ -200,7 +203,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
             MvCard(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("MyView", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text("Version 1.0.0", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Version 1.1.0", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(
                         "Habits, workouts, water, steps, sleep, weight and mood in one place. Every feature is free. Your data stays on your phone; the app has no internet access.",
                         style = MaterialTheme.typography.bodyMedium,

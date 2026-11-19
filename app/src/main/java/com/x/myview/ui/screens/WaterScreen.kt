@@ -17,6 +17,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -47,7 +48,7 @@ import com.x.myview.util.niceDate
 import com.x.myview.util.timeOfDay
 
 @Composable
-fun WaterScreen(vm: MainViewModel) {
+fun WaterScreen(vm: MainViewModel, onOpen: (String) -> Unit = {}) {
     val today by vm.today.collectAsState()
     val settings by vm.settings.collectAsState()
     val logs by vm.waterLogs.collectAsState()
@@ -128,6 +129,15 @@ fun WaterScreen(vm: MainViewModel) {
                     )
                 }
             }
+        }
+
+        item {
+            OutlinedButton(
+                onClick = { onOpen("history:water") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+            ) { Text("Full history, highest and lowest") }
         }
 
         item { SectionTitle("Today's drinks") }
