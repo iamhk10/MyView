@@ -1,10 +1,18 @@
 package com.x.myview.ui
 
 import android.app.Application
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.x.myview.MyViewApp
 import com.x.myview.data.AppSettings
+import com.x.myview.data.Backup
+import com.x.myview.data.db.MoodLogEntity
+import com.x.myview.data.db.SleepLogEntity
+import com.x.myview.data.db.WeightLogEntity
+import com.x.myview.domain.exerciseTotal
+import com.x.myview.domain.scheduledHabits
+import com.x.myview.domain.waterTotal
 import com.x.myview.data.db.ExerciseEntity
 import com.x.myview.data.db.ExerciseLogEntity
 import com.x.myview.data.db.HabitEntity
@@ -12,7 +20,9 @@ import com.x.myview.data.db.WaterLogEntity
 import com.x.myview.reminders.Reminders
 import com.x.myview.util.todayEpochDay
 import com.x.myview.widget.WidgetUpdater
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -49,6 +59,24 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     val steps: StateFlow<Map<Long, Int>> = stepTracker.steps
     val stepsSupported: Boolean = stepTracker.isSupported
 
+    val sleepLogs: StateFlow<List<SleepLogEntity>> =
+        repo.sleep.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val weightLogs: StateFlow<List<WeightLogEntity>> =
+        repo.weights.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val moodLogs: StateFlow<List<MoodLogEntity>> =
+        repo.moods.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    private val _celebrate = MutableStateFlow(0)
+    /** Goes up by one every time a daily goal is completed; the root screen shows confetti on each change. */
+    val celebrate: StateFlow<Int> = _celebrate.asStateFlow()
+
+    private val _backupMessage = MutableStateFlow<String?>(null)
+    val backupMessage: StateFlow<String?> = _backupMessage.asStateFlow()
+
+    private fun celebrateNow() {
+        if (settingsStore.settings.value.celebrate) _celebrate.value = _celebrate.value + 1
+    }
+
     init {
         viewModelScope.launch { repo.ensureSeed() }
         viewModelScope.launch {
@@ -79,6 +107,14 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
     // ---- Habits ----
     fun toggleHabit(habitId: Long, day: Long, done: Boolean) {
+        if (done && day == todayEpochDay()) {
+            val planned = scheduledHabits(habits.value, day)
+            val doneMap = habitDone.value
+            fun isDone(id: Long) = day in (doneMap[id] ?: emptySet())
+            val wasAll = planned.isNotEmpty() && planned.all { isDone(it.id) }
+            val nowAll = planned.isNotEmpty() && planned.all { it.id == habitId || isDone(it.id) }
+            if (nowAll && !wasAll) celebrateNow()
+        }
         viewModelScope.launch {
             repo.setHabitDone(habitId, day, done)
             WidgetUpdater.updateAll(app)
@@ -115,6 +151,9 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
     fun addExerciseLog(exerciseId: Long, amount: Int) {
         val day = todayEpochDay()
+        val goal = exercises.value.firstOrNull { it.id == exerciseId }?.dailyGoal ?: 0
+        val before = exerciseTotal(exerciseLogs.value, exerciseId, day)
+        if (goal > 0 && before < goal && before + amount >= goal) celebrateNow()
         viewModelScope.launch {
             repo.addExerciseLog(exerciseId, day, amount)
             WidgetUpdater.updateAll(app)
@@ -131,6 +170,9 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     // ---- Water ----
     fun addWater(ml: Int) {
         val day = todayEpochDay()
+        val goal = settingsStore.settings.value.waterGoalMl
+        val before = waterTotal(waterLogs.value, day)
+        if (before < goal && before + ml >= goal) celebrateNow()
         viewModelScope.launch {
             repo.addWater(day, ml)
             WidgetUpdater.updateAll(app)
@@ -141,6 +183,69 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             repo.deleteWater(id)
             WidgetUpdater.updateAll(app)
+        }
+    }
+
+    // ---- Sleep, weight, mood ----
+    fun saveSleep(day: Long, minutes: Int, quality: Int) {
+        viewModelScope.launch { repo.saveSleep(day, minutes, quality) }
+    }
+
+    fun deleteSleep(day: Long) {
+        viewModelScope.launch { repo.deleteSleep(day) }
+    }
+
+    fun saveWeight(day: Long, kg: Float) {
+        viewModelScope.launch { repo.saveWeight(day, kg) }
+    }
+
+    fun deleteWeight(day: Long) {
+        viewModelScope.launch { repo.deleteWeight(day) }
+    }
+
+    fun saveMood(day: Long, mood: Int, note: String) {
+        viewModelScope.launch { repo.saveMood(day, mood, note) }
+    }
+
+    fun deleteMood(day: Long) {
+        viewModelScope.launch { repo.deleteMood(day) }
+    }
+
+    // ---- Backup ----
+    fun clearBackupMessage() {
+        _backupMessage.value = null
+    }
+
+    fun exportBackup(uri: Uri) {
+        viewModelScope.launch {
+            _backupMessage.value = try {
+                val text = Backup.toJson(repo.exportData())
+                withContext(Dispatchers.IO) {
+                    val out = app.contentResolver.openOutputStream(uri) ?: error("Could not open the file")
+                    out.use { it.write(text.toByteArray(Charsets.UTF_8)) }
+                }
+                "Backup saved."
+            } catch (e: Exception) {
+                "Backup failed: ${e.message ?: "unknown error"}"
+            }
+        }
+    }
+
+    fun importBackup(uri: Uri) {
+        viewModelScope.launch {
+            _backupMessage.value = try {
+                val text = withContext(Dispatchers.IO) {
+                    val input = app.contentResolver.openInputStream(uri) ?: error("Could not open the file")
+                    input.use { String(it.readBytes(), Charsets.UTF_8) }
+                }
+                val data = Backup.fromJson(text)
+                repo.importData(data)
+                Reminders.scheduleAll(app)
+                WidgetUpdater.updateAll(app)
+                "Restored ${data.habits.size} habits, ${data.exercises.size} exercises and ${data.habitLogs.size + data.exerciseLogs.size + data.water.size + data.sleep.size + data.weight.size + data.mood.size} log entries."
+            } catch (e: Exception) {
+                "Restore failed: ${e.message ?: "this is not a MyView backup"}. Your data was not changed."
+            }
         }
     }
 }
