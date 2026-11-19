@@ -1,6 +1,7 @@
 package com.x.myview.ui.theme
 
 import android.app.Activity
+import android.graphics.Typeface
 import android.os.Build
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -24,11 +25,17 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import androidx.compose.material3.Typography
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.ColorUtils
 import androidx.core.view.WindowCompat
 import com.x.myview.data.AppSettings
+import com.x.myview.data.FontOption
 import com.x.myview.data.ThemeMode
 
 class AccentOption(val name: String, val color: Color)
@@ -41,6 +48,8 @@ val ACCENTS = listOf(
     AccentOption("Green", Color(0xFF7BDC8A)),
     AccentOption("Orange", Color(0xFFFFA14A)),
     AccentOption("Red", Color(0xFFFF6B6B)),
+    AccentOption("Gold", Color(0xFFFFC24A)),
+    AccentOption("Indigo", Color(0xFF8C9EFF)),
 )
 
 /** Colours a habit or exercise can use. Stored as an index. */
@@ -56,6 +65,48 @@ val FireOrange = Color(0xFFFF9A3D)
 val StepsTeal = Color(0xFF3DD6C6)
 
 val LocalIsDark = staticCompositionLocalOf { true }
+
+/** Whether taps give a small vibration (a setting). */
+val LocalHapticsOn = staticCompositionLocalOf { true }
+
+/** Font families that every Android phone already has. */
+fun fontFamilyFor(option: FontOption): FontFamily = when (option) {
+    FontOption.DEFAULT -> FontFamily.Default
+    FontOption.MEDIUM -> FontFamily(Typeface.create("sans-serif-medium", Typeface.NORMAL))
+    FontOption.CONDENSED -> FontFamily(Typeface.create("sans-serif-condensed", Typeface.NORMAL))
+    FontOption.LIGHT -> FontFamily(Typeface.create("sans-serif-light", Typeface.NORMAL))
+    FontOption.SERIF -> FontFamily.Serif
+    FontOption.MONO -> FontFamily.Monospace
+}
+
+/** Material typography with the chosen font and size scale; big headings are bold and slightly tighter. */
+private fun buildTypography(family: FontFamily, scale: Float): Typography {
+    val base = Typography()
+    fun TextStyle.styled(bold: Boolean = false): TextStyle = copy(
+        fontFamily = family,
+        fontSize = fontSize * scale,
+        lineHeight = lineHeight * scale,
+        fontWeight = if (bold) FontWeight.Bold else fontWeight,
+        letterSpacing = if (bold) (-0.4).sp else letterSpacing,
+    )
+    return Typography(
+        displayLarge = base.displayLarge.styled(true),
+        displayMedium = base.displayMedium.styled(true),
+        displaySmall = base.displaySmall.styled(true),
+        headlineLarge = base.headlineLarge.styled(true),
+        headlineMedium = base.headlineMedium.styled(true),
+        headlineSmall = base.headlineSmall.styled(true),
+        titleLarge = base.titleLarge.styled(),
+        titleMedium = base.titleMedium.styled(),
+        titleSmall = base.titleSmall.styled(),
+        bodyLarge = base.bodyLarge.styled(),
+        bodyMedium = base.bodyMedium.styled(),
+        bodySmall = base.bodySmall.styled(),
+        labelLarge = base.labelLarge.styled(),
+        labelMedium = base.labelMedium.styled(),
+        labelSmall = base.labelSmall.styled(),
+    )
+}
 val LocalGlass = staticCompositionLocalOf { false }
 
 /** Height of the floating nav bar plus margins, so scrolling lists can leave room under them. */
@@ -174,11 +225,16 @@ fun MyViewTheme(settings: AppSettings, content: @Composable () -> Unit) {
         }
     }
 
+    val typography = remember(settings.fontOption, settings.textSize) {
+        buildTypography(fontFamilyFor(settings.fontOption), settings.textSize.scale)
+    }
+
     CompositionLocalProvider(
         LocalIsDark provides dark,
         LocalGlass provides settings.glass,
+        LocalHapticsOn provides settings.haptics,
     ) {
-        MaterialTheme(colorScheme = scheme) {
+        MaterialTheme(colorScheme = scheme, typography = typography) {
             // Text and icons outside a Surface default to black. Providing the content colour here
             // keeps every screen readable in light, dark, AMOLED and wallpaper-colour modes.
             CompositionLocalProvider(LocalContentColor provides scheme.onBackground, content = content)
