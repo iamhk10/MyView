@@ -44,7 +44,7 @@ class StepTracker(private val context: Context) {
     fun stepsFor(day: Long): Int = _steps.value[day] ?: 0
 
     private fun load(): Map<Long, Int> {
-        val cutoff = todayEpochDay() - 400
+        val cutoff = todayEpochDay() - 3650
         val map = HashMap<Long, Int>()
         for ((key, value) in prefs.all) {
             if (key.startsWith("d_") && value is Int) {
@@ -82,16 +82,27 @@ class StepTracker(private val context: Context) {
         override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
     }
     private var live = false
+    private val owners = HashSet<String>()
 
-    /** Keeps the count updating while the app is on screen. */
-    fun startLive() {
+    /** True while a live listener is registered (the sensor is then already feeding us). */
+    val isLive: Boolean get() = live
+
+    /**
+     * Keeps the count updating. The app screen and the background step service each ask for it under
+     * their own name, and the sensor listener stays on until both have let go.
+     */
+    @Synchronized
+    fun startLive(owner: String = OWNER_APP) {
+        owners.add(owner)
         val s = sensor ?: return
         if (live || !hasPermission()) return
-        live = manager?.registerListener(liveListener, s, SensorManager.SENSOR_DELAY_NORMAL) == true
+        live = manager?.registerListener(liveListener, s, SensorManager.SENSOR_DELAY_NORMAL, 0) == true
     }
 
-    fun stopLive() {
-        if (!live) return
+    @Synchronized
+    fun stopLive(owner: String = OWNER_APP) {
+        owners.remove(owner)
+        if (!live || owners.isNotEmpty()) return
         manager?.unregisterListener(liveListener)
         live = false
     }
@@ -117,5 +128,10 @@ class StepTracker(private val context: Context) {
                 cont.invokeOnCancellation { m.unregisterListener(listener) }
             }
         }
+    }
+
+    companion object {
+        const val OWNER_APP = "app"
+        const val OWNER_SERVICE = "service"
     }
 }
