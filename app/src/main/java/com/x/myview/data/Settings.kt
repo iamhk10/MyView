@@ -51,6 +51,8 @@ data class AppSettings(
     val haptics: Boolean = true,
     /** Confetti when a daily goal is completed. */
     val celebrate: Boolean = true,
+    /** Keep counting steps in the background with a quiet notification, so widgets update at once. */
+    val liveSteps: Boolean = true,
 )
 
 /** Small settings store on top of SharedPreferences. Exposes the settings as a StateFlow. */
@@ -81,6 +83,7 @@ class SettingsStore(context: Context) {
             weightGoalKg = prefs.getFloat("weightGoalKg", 0f).coerceIn(0f, 500f),
             haptics = prefs.getBoolean("haptics", true),
             celebrate = prefs.getBoolean("celebrate", true),
+            liveSteps = prefs.getBoolean("liveSteps", true),
         )
     }
 
@@ -106,6 +109,7 @@ class SettingsStore(context: Context) {
             .putFloat("weightGoalKg", next.weightGoalKg)
             .putBoolean("haptics", next.haptics)
             .putBoolean("celebrate", next.celebrate)
+            .putBoolean("liveSteps", next.liveSteps)
             .apply()
     }
 }
