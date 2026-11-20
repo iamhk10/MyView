@@ -2,6 +2,7 @@ package com.x.myview.di
 
 import android.content.Context
 import androidx.room.Room
+import com.x.myview.data.ExtrasStore
 import com.x.myview.data.Repository
 import com.x.myview.data.SettingsStore
 import com.x.myview.data.db.MIGRATION_1_2
@@ -16,4 +17,5 @@ class AppContainer(context: Context) {
     val repository = Repository(db)
     val settings = SettingsStore(context)
     val stepTracker = StepTracker(context)
+    val extras = ExtrasStore(context)
 }
