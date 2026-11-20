@@ -41,9 +41,12 @@ import com.x.myview.ui.components.NAV_BAR_HEIGHT
 import com.x.myview.ui.components.NavTab
 import com.x.myview.ui.components.appBackground
 import com.x.myview.ui.components.rememberHaptic
+import com.x.myview.ui.screens.AwardsScreen
 import com.x.myview.ui.screens.BackupScreen
+import com.x.myview.ui.screens.BreathScreen
 import com.x.myview.ui.screens.ExerciseDetailScreen
 import com.x.myview.ui.screens.ExerciseEditScreen
+import com.x.myview.ui.screens.FocusScreen
 import com.x.myview.ui.screens.HabitDetailScreen
 import com.x.myview.ui.screens.HabitEditScreen
 import com.x.myview.ui.screens.HabitsScreen
@@ -76,7 +79,7 @@ fun MyViewRoot(vm: MainViewModel) {
 
 /**
  * Screens that sit on top of the tabs are named with a short key: "settings", "steps", "sleep", "weight",
- * "mood", "backup", "history:<metric>", "habit:<id>", "habitedit:<id>" (0 = new), "ex:<id>", "exedit:<id>" (0 = new).
+ * "mood", "backup", "history:<metric>", "focus", "breathe", "awards", "habit:<id>", "habitedit:<id>" (0 = new), "ex:<id>", "exedit:<id>" (0 = new).
  */
 @Composable
 private fun RootContent(vm: MainViewModel) {
@@ -182,6 +185,9 @@ private fun OverlayHost(vm: MainViewModel, key: String, open: (String) -> Unit, 
         when (parts[0]) {
             "settings" -> SettingsScreen(vm, onBack = close)
             "steps" -> StepsScreen(vm, onBack = close, onHistory = { open("history:steps") })
+            "focus" -> FocusScreen(vm, onBack = close)
+            "breathe" -> BreathScreen(vm, onBack = close)
+            "awards" -> AwardsScreen(vm, onBack = close)
             "history" -> HistoryScreen(vm, start = parts.getOrNull(1) ?: "steps", onBack = close)
             "sleep" -> SleepScreen(vm, onBack = close)
             "weight" -> WeightScreen(vm, onBack = close)

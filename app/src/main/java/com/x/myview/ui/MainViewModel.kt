@@ -38,6 +38,7 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     private val repo = container.repository
     private val settingsStore = container.settings
     private val stepTracker = container.stepTracker
+    private val extras = container.extras
 
     val settings: StateFlow<AppSettings> = settingsStore.settings
 
@@ -73,6 +74,12 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
 
     private val _backupMessage = MutableStateFlow<String?>(null)
     val backupMessage: StateFlow<String?> = _backupMessage.asStateFlow()
+
+    /** Focused minutes and finished breathing sessions per day. */
+    val focusMinutes: StateFlow<Map<Long, Int>> = extras.focusMinutes
+    val breathSessions: StateFlow<Map<Long, Int>> = extras.breathSessions
+    val focusEnd: StateFlow<Long> = extras.focusEnd
+    val focusPlanned: StateFlow<Int> = extras.focusPlanned
 
     private fun celebrateNow() {
         if (settingsStore.settings.value.celebrate) _celebrate.value = _celebrate.value + 1
@@ -216,6 +223,24 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     fun deleteMood(day: Long) {
         viewModelScope.launch { repo.deleteMood(day) }
     }
+
+    // ---- Focus and breathing ----
+    fun startFocus(minutes: Int) = extras.startFocus(minutes.coerceIn(1, 180))
+
+    fun cancelFocus() = extras.clearFocus()
+
+    /** If the running focus timer has run out, credit it and celebrate. Returns true when it did. */
+    fun finishFocusIfDue(): Boolean {
+        val end = extras.focusEnd.value
+        if (end <= 0L || System.currentTimeMillis() < end) return false
+        val day = java.time.Instant.ofEpochMilli(end).atZone(java.time.ZoneId.systemDefault()).toLocalDate().toEpochDay()
+        extras.addFocus(day, extras.focusPlanned.value)
+        extras.clearFocus()
+        celebrateNow()
+        return true
+    }
+
+    fun addBreathSession() = extras.addBreath(todayEpochDay())
 
     // ---- Backup ----
     fun clearBackupMessage() {
