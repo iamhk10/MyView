@@ -53,6 +53,18 @@ class ExtrasStore(context: Context) {
         _breath.value = _breath.value + (day to total)
     }
 
+    /** Swaps the focus and breathing history for the given maps (used when restoring a backup). */
+    @Synchronized
+    fun replaceCounters(focus: Map<Long, Int>, breath: Map<Long, Int>) {
+        val editor = prefs.edit()
+        for (key in prefs.all.keys) if (key.startsWith("f_") || key.startsWith("b_")) editor.remove(key)
+        for ((day, n) in focus) if (n > 0) editor.putInt("f_$day", n)
+        for ((day, n) in breath) if (n > 0) editor.putInt("b_$day", n)
+        editor.apply()
+        _focus.value = focus.filterValues { it > 0 }
+        _breath.value = breath.filterValues { it > 0 }
+    }
+
     @Synchronized
     fun startFocus(minutes: Int) {
         val end = System.currentTimeMillis() + minutes * 60_000L

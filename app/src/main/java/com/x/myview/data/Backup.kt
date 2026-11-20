@@ -11,7 +11,11 @@ import com.x.myview.data.db.WeightLogEntity
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** Everything the user has logged. Settings and step history are not part of a backup. */
+/**
+ * Everything the user has logged, plus (format 2) step history, focus minutes, breathing sessions and
+ * the app settings. [hasExtras] is false for backups made by older versions, which then leave the
+ * current steps, focus, breathing and settings alone when restored.
+ */
 class BackupData(
     val habits: List<HabitEntity>,
     val habitLogs: List<HabitLogEntity>,
@@ -21,11 +25,62 @@ class BackupData(
     val sleep: List<SleepLogEntity>,
     val weight: List<WeightLogEntity>,
     val mood: List<MoodLogEntity>,
+    val steps: Map<Long, Int> = emptyMap(),
+    val focus: Map<Long, Int> = emptyMap(),
+    val breath: Map<Long, Int> = emptyMap(),
+    val settings: AppSettings? = null,
+    val hasExtras: Boolean = false,
 )
 
 /** Reads and writes backups as one readable JSON file. */
 object Backup {
-    private const val FORMAT = 1
+    private const val FORMAT = 2
+
+    private fun dayCounts(map: Map<Long, Int>, valueKey: String): JSONArray = JSONArray().also { a ->
+        map.entries.sortedBy { it.key }.forEach { a.put(JSONObject().put("day", it.key).put(valueKey, it.value)) }
+    }
+
+    private fun settingsToJson(s: AppSettings): JSONObject = JSONObject()
+        .put("themeMode", s.themeMode.name).put("accentIndex", s.accentIndex)
+        .put("dynamicColor", s.dynamicColor).put("glass", s.glass)
+        .put("waterGoalMl", s.waterGoalMl).put("glassMl", s.glassMl).put("stepGoal", s.stepGoal)
+        .put("waterReminder", s.waterReminder).put("waterIntervalH", s.waterIntervalH)
+        .put("workoutReminder", s.workoutReminder).put("workoutReminderMin", s.workoutReminderMin)
+        .put("fontOption", s.fontOption.name).put("textSize", s.textSize.name)
+        .put("sleepGoalMin", s.sleepGoalMin).put("useLb", s.useLb).put("weightGoalKg", s.weightGoalKg.toDouble())
+        .put("haptics", s.haptics).put("celebrate", s.celebrate).put("liveSteps", s.liveSteps)
+        .put("look", s.look.name).put("displayFont", s.displayFont.name)
+
+    private inline fun <reified E : Enum<E>> JSONObject.enumOf(key: String, default: E): E =
+        enumValues<E>().firstOrNull { it.name == optString(key) } ?: default
+
+    /** Missing or odd values fall back to the defaults and are kept inside the same limits the settings screen uses. */
+    private fun settingsFromJson(o: JSONObject): AppSettings {
+        val d = AppSettings()
+        return AppSettings(
+            themeMode = o.enumOf("themeMode", d.themeMode),
+            accentIndex = o.optInt("accentIndex", d.accentIndex).coerceAtLeast(0),
+            dynamicColor = o.optBoolean("dynamicColor", d.dynamicColor),
+            glass = o.optBoolean("glass", d.glass),
+            waterGoalMl = o.optInt("waterGoalMl", d.waterGoalMl).coerceIn(500, 8000),
+            glassMl = o.optInt("glassMl", d.glassMl).coerceIn(50, 1500),
+            stepGoal = o.optInt("stepGoal", d.stepGoal).coerceIn(1000, 50000),
+            waterReminder = o.optBoolean("waterReminder", d.waterReminder),
+            waterIntervalH = o.optInt("waterIntervalH", d.waterIntervalH).coerceIn(1, 6),
+            workoutReminder = o.optBoolean("workoutReminder", d.workoutReminder),
+            workoutReminderMin = o.optInt("workoutReminderMin", d.workoutReminderMin).coerceIn(0, 1439),
+            fontOption = o.enumOf("fontOption", d.fontOption),
+            textSize = o.enumOf("textSize", d.textSize),
+            sleepGoalMin = o.optInt("sleepGoalMin", d.sleepGoalMin).coerceIn(240, 720),
+            useLb = o.optBoolean("useLb", d.useLb),
+            weightGoalKg = o.optDouble("weightGoalKg", d.weightGoalKg.toDouble()).toFloat().coerceIn(0f, 500f),
+            haptics = o.optBoolean("haptics", d.haptics),
+            celebrate = o.optBoolean("celebrate", d.celebrate),
+            liveSteps = o.optBoolean("liveSteps", d.liveSteps),
+            look = o.enumOf("look", d.look),
+            displayFont = o.enumOf("displayFont", d.displayFont),
+        )
+    }
 
     fun toJson(d: BackupData): String {
         val root = JSONObject()
@@ -66,6 +121,10 @@ object Backup {
         root.put("mood", JSONArray().also { a ->
             d.mood.forEach { a.put(JSONObject().put("day", it.day).put("mood", it.mood).put("note", it.note)) }
         })
+        root.put("steps", dayCounts(d.steps, "steps"))
+        root.put("focus", dayCounts(d.focus, "minutes"))
+        root.put("breath", dayCounts(d.breath, "sessions"))
+        d.settings?.let { root.put("settings", settingsToJson(it)) }
         return root.toString(2)
     }
 
@@ -78,6 +137,10 @@ object Backup {
         fun arr(name: String): JSONArray = root.optJSONArray(name) ?: JSONArray()
         fun <T> JSONArray.mapObjects(f: (JSONObject) -> T): List<T> = (0 until length()).map { f(getJSONObject(it)) }
 
+        fun counts(name: String, valueKey: String): Map<Long, Int> =
+            arr(name).mapObjects { it.getLong("day") to it.getInt(valueKey) }.toMap()
+
+        val extras = root.optInt("format", 1) >= 2
         return BackupData(
             habits = arr("habits").mapObjects {
                 HabitEntity(
@@ -107,6 +170,11 @@ object Backup {
             sleep = arr("sleep").mapObjects { SleepLogEntity(it.getLong("day"), it.getInt("minutes"), it.optInt("quality", 0)) },
             weight = arr("weight").mapObjects { WeightLogEntity(it.getLong("day"), it.getDouble("kg").toFloat()) },
             mood = arr("mood").mapObjects { MoodLogEntity(it.getLong("day"), it.getInt("mood"), it.optString("note", "")) },
+            steps = if (extras) counts("steps", "steps") else emptyMap(),
+            focus = if (extras) counts("focus", "minutes") else emptyMap(),
+            breath = if (extras) counts("breath", "sessions") else emptyMap(),
+            settings = if (extras) root.optJSONObject("settings")?.let { settingsFromJson(it) } else null,
+            hasExtras = extras,
         )
     }
 }

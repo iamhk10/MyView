@@ -90,7 +90,8 @@ class Repository(private val db: MyViewDatabase) {
     suspend fun deleteMood(day: Long) = moodDao.delete(day)
 
     // ---- Backup ----
-    suspend fun exportData(): BackupData = BackupData(
+    /** [extras] carries the data that lives outside the database (steps, focus, breathing, settings). */
+    suspend fun exportData(extras: BackupData? = null): BackupData = BackupData(
         habits = backupDao.habits(),
         habitLogs = backupDao.habitLogs(),
         exercises = backupDao.exercises(),
@@ -99,6 +100,11 @@ class Repository(private val db: MyViewDatabase) {
         sleep = backupDao.sleep(),
         weight = backupDao.weight(),
         mood = backupDao.mood(),
+        steps = extras?.steps ?: emptyMap(),
+        focus = extras?.focus ?: emptyMap(),
+        breath = extras?.breath ?: emptyMap(),
+        settings = extras?.settings,
+        hasExtras = extras != null,
     )
 
     /** Replaces everything with [d] in one transaction: either all of it is restored or nothing changes. */
