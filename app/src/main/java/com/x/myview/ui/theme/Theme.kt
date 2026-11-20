@@ -34,7 +34,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.ColorUtils
 import androidx.core.view.WindowCompat
+import com.x.myview.data.AppLook
 import com.x.myview.data.AppSettings
+import com.x.myview.data.DisplayFont
 import com.x.myview.data.FontOption
 import com.x.myview.data.ThemeMode
 
@@ -50,6 +52,7 @@ val ACCENTS = listOf(
     AccentOption("Red", Color(0xFFFF6B6B)),
     AccentOption("Gold", Color(0xFFFFC24A)),
     AccentOption("Indigo", Color(0xFF8C9EFF)),
+    AccentOption("Silver", Color(0xFFC9CCD8)),
 )
 
 /** Colours a habit or exercise can use. Stored as an index. */
@@ -66,6 +69,19 @@ val StepsTeal = Color(0xFF3DD6C6)
 
 val LocalIsDark = staticCompositionLocalOf { true }
 
+/** Which overall look is active (cards, background and titles change with it). */
+val LocalLook = staticCompositionLocalOf { AppLook.MIDNIGHT }
+
+/** Brushed-silver edge colour and the deep violet used by the Midnight look. */
+val Silver = Color(0xFFDADDE9)
+val DeepViolet = Color(0xFF241257)
+
+/** Fonts for a few special places (Android ships them all, nothing is downloaded). */
+val ScriptFont: FontFamily = FontFamily(Typeface.create("cursive", Typeface.BOLD))
+val QuoteFont: FontFamily = FontFamily(Typeface.create("serif", Typeface.ITALIC))
+val NumberFont: FontFamily = FontFamily(Typeface.create("sans-serif-condensed", Typeface.BOLD))
+val BlackFont: FontFamily = FontFamily(Typeface.create("sans-serif-black", Typeface.NORMAL))
+
 /** Whether taps give a small vibration (a setting). */
 val LocalHapticsOn = staticCompositionLocalOf { true }
 
@@ -79,10 +95,23 @@ fun fontFamilyFor(option: FontOption): FontFamily = when (option) {
     FontOption.MONO -> FontFamily.Monospace
 }
 
-/** Material typography with the chosen font and size scale; big headings are bold and slightly tighter. */
-private fun buildTypography(family: FontFamily, scale: Float): Typography {
+fun displayFamilyFor(option: DisplayFont, text: FontFamily): FontFamily = when (option) {
+    DisplayFont.BLACK -> BlackFont
+    DisplayFont.CONDENSED -> NumberFont
+    DisplayFont.SERIF -> FontFamily(Typeface.create("serif", Typeface.BOLD))
+    DisplayFont.SCRIPT -> ScriptFont
+    DisplayFont.CASUAL -> FontFamily(Typeface.create("casual", Typeface.NORMAL))
+    DisplayFont.SMALL_CAPS -> FontFamily(Typeface.create("sans-serif-smallcaps", Typeface.NORMAL))
+    DisplayFont.SAME -> text
+}
+
+/**
+ * Material typography with the chosen fonts and size scale. Big headings and the larger titles use the
+ * display font, everything else the body font.
+ */
+private fun buildTypography(text: FontFamily, display: FontFamily, scale: Float): Typography {
     val base = Typography()
-    fun TextStyle.styled(bold: Boolean = false): TextStyle = copy(
+    fun TextStyle.styled(bold: Boolean = false, family: FontFamily = text): TextStyle = copy(
         fontFamily = family,
         fontSize = fontSize * scale,
         lineHeight = lineHeight * scale,
@@ -90,14 +119,14 @@ private fun buildTypography(family: FontFamily, scale: Float): Typography {
         letterSpacing = if (bold) (-0.4).sp else letterSpacing,
     )
     return Typography(
-        displayLarge = base.displayLarge.styled(true),
-        displayMedium = base.displayMedium.styled(true),
-        displaySmall = base.displaySmall.styled(true),
-        headlineLarge = base.headlineLarge.styled(true),
-        headlineMedium = base.headlineMedium.styled(true),
-        headlineSmall = base.headlineSmall.styled(true),
-        titleLarge = base.titleLarge.styled(),
-        titleMedium = base.titleMedium.styled(),
+        displayLarge = base.displayLarge.styled(true, display),
+        displayMedium = base.displayMedium.styled(true, display),
+        displaySmall = base.displaySmall.styled(true, display),
+        headlineLarge = base.headlineLarge.styled(true, display),
+        headlineMedium = base.headlineMedium.styled(true, display),
+        headlineSmall = base.headlineSmall.styled(true, display),
+        titleLarge = base.titleLarge.styled(false, display),
+        titleMedium = base.titleMedium.styled(false, display),
         titleSmall = base.titleSmall.styled(),
         bodyLarge = base.bodyLarge.styled(),
         bodyMedium = base.bodyMedium.styled(),
@@ -122,10 +151,10 @@ private fun tuneAccent(seed: Color, dark: Boolean): Color {
     return Color(ColorUtils.HSLToColor(hsl))
 }
 
-private fun buildScheme(seed: Color, dark: Boolean, amoled: Boolean): ColorScheme {
+private fun buildScheme(seed: Color, dark: Boolean, amoled: Boolean, midnight: Boolean): ColorScheme {
     val accent = tuneAccent(seed, dark)
     return if (dark) {
-        val bg = if (amoled) Color.Black else lerp(Color(0xFF0B0B12), accent, 0.07f)
+        val bg = if (amoled) Color.Black else if (midnight) lerp(Color(0xFF07060C), accent, 0.045f) else lerp(Color(0xFF0B0B12), accent, 0.07f)
         val onSurface = Color(0xFFEDEAF3)
         darkColorScheme(
             primary = accent,
@@ -209,7 +238,7 @@ fun MyViewTheme(settings: AppSettings, content: @Composable () -> Unit) {
         val base = if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         if (amoled) base.toAmoled() else base
     } else {
-        remember(seed, dark, amoled) { buildScheme(seed, dark, amoled) }
+        remember(seed, dark, amoled, settings.look) { buildScheme(seed, dark, amoled, settings.look == AppLook.MIDNIGHT) }
     }
 
     val view = LocalView.current
@@ -225,14 +254,16 @@ fun MyViewTheme(settings: AppSettings, content: @Composable () -> Unit) {
         }
     }
 
-    val typography = remember(settings.fontOption, settings.textSize) {
-        buildTypography(fontFamilyFor(settings.fontOption), settings.textSize.scale)
+    val typography = remember(settings.fontOption, settings.displayFont, settings.textSize) {
+        val text = fontFamilyFor(settings.fontOption)
+        buildTypography(text, displayFamilyFor(settings.displayFont, text), settings.textSize.scale)
     }
 
     CompositionLocalProvider(
         LocalIsDark provides dark,
         LocalGlass provides settings.glass,
         LocalHapticsOn provides settings.haptics,
+        LocalLook provides settings.look,
     ) {
         MaterialTheme(colorScheme = scheme, typography = typography) {
             // Text and icons outside a Surface default to black. Providing the content colour here
