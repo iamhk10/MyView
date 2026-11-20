@@ -5,9 +5,12 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.RectF
+import android.graphics.SweepGradient
 import android.widget.RemoteViews
 import androidx.compose.ui.graphics.toArgb
 import com.x.myview.MyViewApp
@@ -27,7 +30,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import java.text.NumberFormat
 
 /** Base class: every widget refreshes all widgets from the database when Android asks for an update. */
 abstract class BaseWidget : AppWidgetProvider() {
@@ -57,6 +59,7 @@ private class Snapshot(
     val doneByHabit: Map<Long, Set<Long>>,
     val waterMl: Int,
     val reps: Int,
+    val repsGoal: Int,
     val stepsSupported: Boolean,
     val steps: Int,
 )
@@ -97,7 +100,8 @@ object WidgetUpdater {
         val today = todayEpochDay()
         val exercises = repo.exercises.first()
         val logs = repo.exerciseLogs.first()
-        val reps = exercises.filter { it.kind == KIND_REPS }.sumOf { exerciseTotal(logs, it.id, today) }
+        val repExercises = exercises.filter { it.kind == KIND_REPS }
+        val reps = repExercises.sumOf { exerciseTotal(logs, it.id, today) }
         return Snapshot(
             today = today,
             settings = c.settings.settings.value,
@@ -105,6 +109,7 @@ object WidgetUpdater {
             doneByHabit = repo.habitDone.first(),
             waterMl = repo.waterTotalFor(today),
             reps = reps,
+            repsGoal = repExercises.sumOf { it.dailyGoal },
             stepsSupported = c.stepTracker.isSupported,
             steps = c.stepTracker.stepsFor(today),
         )
@@ -123,6 +128,8 @@ object WidgetUpdater {
         fun isDone(h: HabitEntity) = snap.today in (snap.doneByHabit[h.id] ?: emptySet())
         val doneCount = snap.planned.count { isDone(it) }
         v.setTextViewText(R.id.h_count, "$doneCount / ${snap.planned.size}")
+        val habitProgress = if (snap.planned.isEmpty()) 0f else doneCount.toFloat() / snap.planned.size
+        v.setImageViewBitmap(R.id.h_bar, barBitmap(habitProgress, accent(snap.settings)))
 
         val rows = intArrayOf(R.id.h_row1, R.id.h_row2, R.id.h_row3, R.id.h_row4)
         val checks = intArrayOf(R.id.h_check1, R.id.h_check2, R.id.h_check3, R.id.h_check4)
@@ -139,7 +146,8 @@ object WidgetUpdater {
                 v.setViewVisibility(rows[i], android.view.View.VISIBLE)
                 v.setImageViewResource(checks[i], if (done) R.drawable.ic_widget_done else R.drawable.ic_widget_todo)
                 v.setTextViewText(names[i], h.name)
-                v.setTextViewText(streaks[i], if (streak > 0) "🔥 $streak" else "")
+                v.setTextColor(names[i], if (done) 0x80FFFFFF.toInt() else 0xFFFFFFFF.toInt())
+                v.setTextViewText(streaks[i], if (streak > 0) "\uD83D\uDD25 $streak" else "")
                 v.setOnClickPendingIntent(rows[i], Reminders.actionPending(ctx, Reminders.ACTION_TOGGLE_HABIT, h.id))
             } else {
                 v.setViewVisibility(rows[i], android.view.View.GONE)
@@ -169,9 +177,13 @@ object WidgetUpdater {
         val goal = snap.settings.waterGoalMl.coerceAtLeast(1)
         val progress = snap.waterMl.toFloat() / goal
         v.setOnClickPendingIntent(R.id.w_root, Reminders.openAppPending(ctx))
-        v.setImageViewBitmap(R.id.w_ring, ringBitmap(progress, 0xFF4DB8FF.toInt()))
+        v.setImageViewBitmap(R.id.w_ring, ringBitmap(progress, 0xFF3FA9FF.toInt(), 0xFF8E7CFF.toInt()))
         v.setTextViewText(R.id.w_percent, "${(progress * 100).toInt().coerceAtMost(999)}%")
-        v.setTextViewText(R.id.w_amount, "${formatMl(snap.waterMl)} / ${formatMl(goal)}")
+        v.setTextViewText(R.id.w_amount, formatMl(snap.waterMl))
+        v.setTextViewText(
+            R.id.w_left,
+            if (snap.waterMl >= goal) "Goal reached" else "${formatMl(goal - snap.waterMl)} to go of ${formatMl(goal)}",
+        )
         v.setTextViewText(R.id.w_add, "+ ${snap.settings.glassMl} ml")
         v.setOnClickPendingIntent(R.id.w_add, Reminders.actionPending(ctx, Reminders.ACTION_ADD_WATER, 0))
         return v
@@ -182,36 +194,89 @@ object WidgetUpdater {
     private fun summaryViews(ctx: Context, snap: Snapshot): RemoteViews {
         val v = RemoteViews(ctx.packageName, R.layout.widget_summary)
         v.setOnClickPendingIntent(R.id.w_root, Reminders.openAppPending(ctx))
-        val nf = NumberFormat.getIntegerInstance()
+        val goalWater = snap.settings.waterGoalMl.coerceAtLeast(1)
+        val habitsDone = snap.planned.count { snap.today in (snap.doneByHabit[it.id] ?: emptySet()) }
+
         if (snap.stepsSupported) {
             v.setViewVisibility(R.id.s_box_steps, android.view.View.VISIBLE)
-            v.setTextViewText(R.id.s_val_steps, nf.format(snap.steps))
+            v.setImageViewBitmap(
+                R.id.s_ring_steps,
+                ringBitmap(snap.steps.toFloat() / snap.settings.stepGoal.coerceAtLeast(1), 0xFF2DD4BF.toInt(), 0xFF5EEAD4.toInt()),
+            )
+            v.setTextViewText(R.id.s_val_steps, compact(snap.steps))
         } else {
             v.setViewVisibility(R.id.s_box_steps, android.view.View.GONE)
         }
-        v.setTextViewText(R.id.s_val_water, formatMl(snap.waterMl))
-        v.setTextViewText(R.id.s_val_reps, nf.format(snap.reps))
-        val done = snap.planned.count { snap.today in (snap.doneByHabit[it.id] ?: emptySet()) }
-        v.setTextViewText(R.id.s_val_habits, "$done/${snap.planned.size}")
+        v.setImageViewBitmap(R.id.s_ring_water, ringBitmap(snap.waterMl.toFloat() / goalWater, 0xFF3FA9FF.toInt(), 0xFF8E7CFF.toInt()))
+        v.setTextViewText(R.id.s_val_water, if (snap.waterMl >= 1000) String.format(java.util.Locale.US, "%.1fL", snap.waterMl / 1000f) else "${snap.waterMl}")
+        v.setImageViewBitmap(
+            R.id.s_ring_reps,
+            ringBitmap(if (snap.repsGoal > 0) snap.reps.toFloat() / snap.repsGoal else 0f, 0xFFFF8A3D.toInt(), 0xFFFFC857.toInt()),
+        )
+        v.setTextViewText(R.id.s_val_reps, compact(snap.reps))
+        val accentColor = accent(snap.settings)
+        v.setImageViewBitmap(
+            R.id.s_ring_habits,
+            ringBitmap(if (snap.planned.isEmpty()) 0f else habitsDone.toFloat() / snap.planned.size, accentColor, 0xFFFF6FB5.toInt()),
+        )
+        v.setTextViewText(R.id.s_val_habits, "$habitsDone/${snap.planned.size}")
         return v
     }
 
-    private fun ringBitmap(progress: Float, color: Int): Bitmap {
-        val size = 200
-        val stroke = 24f
+    /** 8200 -> "8.2k", 12400 -> "12k", small numbers stay as they are. */
+    private fun compact(n: Int): String = when {
+        n >= 10_000 -> "${n / 1000}k"
+        n >= 1_000 -> String.format(java.util.Locale.US, "%.1fk", n / 1000f)
+        else -> n.toString()
+    }
+
+    /** A glowing gradient ring. [progress] 0..1 (more than 1 is shown as a full ring). */
+    private fun ringBitmap(progress: Float, colorStart: Int, colorEnd: Int): Bitmap {
+        val size = 240
+        val stroke = 26f
+        val pad = stroke / 2 + 14f
         val bmp = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bmp)
+        val rect = RectF(pad, pad, size - pad, size - pad)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.STROKE
             strokeWidth = stroke
             strokeCap = Paint.Cap.ROUND
+            color = 0x24FFFFFF
         }
-        val rect = RectF(stroke / 2, stroke / 2, size - stroke / 2, size - stroke / 2)
-        paint.color = 0x33FFFFFF
         canvas.drawArc(rect, 0f, 360f, false, paint)
-        if (progress > 0f) {
-            paint.color = color
-            canvas.drawArc(rect, -90f, 360f * progress.coerceIn(0f, 1f), false, paint)
+        val p = progress.coerceIn(0f, 1f)
+        if (p > 0.001f) {
+            val shader = SweepGradient(size / 2f, size / 2f, intArrayOf(colorStart, colorEnd), floatArrayOf(0f, p.coerceAtLeast(0.02f)))
+            val m = Matrix()
+            m.postRotate(-90f, size / 2f, size / 2f)
+            shader.setLocalMatrix(m)
+            paint.shader = shader
+            // Soft glow under the bright arc.
+            paint.maskFilter = BlurMaskFilter(14f, BlurMaskFilter.Blur.NORMAL)
+            paint.alpha = 150
+            canvas.drawArc(rect, -90f, 360f * p, false, paint)
+            paint.maskFilter = null
+            paint.alpha = 255
+            canvas.drawArc(rect, -90f, 360f * p, false, paint)
+        }
+        return bmp
+    }
+
+    /** A rounded progress bar with a gradient fill, drawn wide so it stays sharp when stretched. */
+    private fun barBitmap(progress: Float, color: Int): Bitmap {
+        val w = 720
+        val h = 20
+        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        paint.color = 0x24FFFFFF
+        canvas.drawRoundRect(RectF(0f, 0f, w.toFloat(), h.toFloat()), h / 2f, h / 2f, paint)
+        val p = progress.coerceIn(0f, 1f)
+        if (p > 0f) {
+            val fillW = (w * p).coerceAtLeast(h.toFloat())
+            paint.shader = android.graphics.LinearGradient(0f, 0f, fillW, 0f, color, 0xFFFF6FB5.toInt(), android.graphics.Shader.TileMode.CLAMP)
+            canvas.drawRoundRect(RectF(0f, 0f, fillW, h.toFloat()), h / 2f, h / 2f, paint)
         }
         return bmp
     }
