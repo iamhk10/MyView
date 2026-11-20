@@ -137,7 +137,7 @@ fun StepsScreen(vm: MainViewModel, onBack: () -> Unit, onHistory: () -> Unit = {
             ) { Text("Full history, highest and lowest") }
             Box(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
                 Text(
-                    "Steps are counted by your phone's own sensor, even when the app is closed. With "Live step counting" on (Settings) the count and widget update within seconds; otherwise MyView adds them up every ~15 minutes. Counting starts from the moment you first allow the permission. Distance and calories are rough estimates.",
+                    "Steps are counted by your phone's own sensor, even when the app is closed. With \"Live step counting\" on (Settings) the count and widget update within seconds; otherwise MyView adds them up every ~15 minutes. Counting starts from the moment you first allow the permission. Distance and calories are rough estimates.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
