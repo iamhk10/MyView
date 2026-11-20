@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.x.myview.MyViewApp
 import com.x.myview.data.AppSettings
 import com.x.myview.data.Backup
+import com.x.myview.data.BackupData
 import com.x.myview.data.db.MoodLogEntity
 import com.x.myview.data.db.SleepLogEntity
 import com.x.myview.data.db.WeightLogEntity
@@ -250,7 +251,15 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
     fun exportBackup(uri: Uri) {
         viewModelScope.launch {
             _backupMessage.value = try {
-                val text = Backup.toJson(repo.exportData())
+                val snapshot = BackupData(
+                    emptyList(), emptyList(), emptyList(), emptyList(), emptyList(), emptyList(), emptyList(), emptyList(),
+                    steps = stepTracker.steps.value,
+                    focus = extras.focusMinutes.value,
+                    breath = extras.breathSessions.value,
+                    settings = settingsStore.settings.value,
+                    hasExtras = true,
+                )
+                val text = Backup.toJson(repo.exportData(snapshot))
                 withContext(Dispatchers.IO) {
                     val out = app.contentResolver.openOutputStream(uri) ?: error("Could not open the file")
                     out.use { it.write(text.toByteArray(Charsets.UTF_8)) }
@@ -271,9 +280,15 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                 }
                 val data = Backup.fromJson(text)
                 repo.importData(data)
+                if (data.hasExtras) {
+                    stepTracker.replaceDays(data.steps)
+                    extras.replaceCounters(data.focus, data.breath)
+                    data.settings?.let { restored -> settingsStore.update { restored } }
+                    if (settingsStore.settings.value.liveSteps) StepService.startIfEnabled(app) else StepService.stop(app)
+                }
                 Reminders.scheduleAll(app)
                 WidgetUpdater.updateAll(app)
-                "Restored ${data.habits.size} habits, ${data.exercises.size} exercises and ${data.habitLogs.size + data.exerciseLogs.size + data.water.size + data.sleep.size + data.weight.size + data.mood.size} log entries."
+                "Restored ${data.habits.size} habits, ${data.exercises.size} exercises and ${data.habitLogs.size + data.exerciseLogs.size + data.water.size + data.sleep.size + data.weight.size + data.mood.size} log entries" + (if (data.hasExtras) ", plus steps, focus, breathing and settings." else ".")
             } catch (e: Exception) {
                 "Restore failed: ${e.message ?: "this is not a MyView backup"}. Your data was not changed."
             }
