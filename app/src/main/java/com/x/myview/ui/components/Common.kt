@@ -39,12 +39,25 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.ui.draw.drawBehind
+import com.x.myview.data.AppLook
+import com.x.myview.ui.theme.DeepViolet
 import com.x.myview.ui.theme.LocalIsDark
+import com.x.myview.ui.theme.LocalLook
+import com.x.myview.ui.theme.NumberFont
+import com.x.myview.ui.theme.Silver
 import com.x.myview.ui.theme.onColorFor
 import com.x.myview.util.oneLetterDay
 
@@ -54,6 +67,8 @@ fun ScreenHeader(
     title: String,
     subtitle: String? = null,
     modifier: Modifier = Modifier,
+    titleFont: FontFamily? = null,
+    titleSize: TextUnit = TextUnit.Unspecified,
     actions: @Composable () -> Unit = {},
 ) {
     Row(
@@ -63,7 +78,7 @@ fun ScreenHeader(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+            Text(title, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold, fontFamily = titleFont, fontSize = titleSize)
             if (subtitle != null) {
                 Text(
                     subtitle,
@@ -78,12 +93,36 @@ fun ScreenHeader(
 
 @Composable
 fun SectionTitle(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text,
-        modifier = modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 6.dp),
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold,
-    )
+    if (LocalLook.current == AppLook.MIDNIGHT) {
+        val scheme = MaterialTheme.colorScheme
+        Row(
+            modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier
+                    .width(4.dp)
+                    .height(15.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(Brush.verticalGradient(listOf(scheme.primary, scheme.tertiary))),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text.uppercase(),
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 1.8.sp,
+                color = scheme.onSurface.copy(alpha = 0.85f),
+            )
+        }
+    } else {
+        Text(
+            text,
+            modifier = modifier.padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 6.dp),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+        )
+    }
 }
 
 /** Soft card with a light edge. Squeezes a little when pressed if [onClick] is given. */
@@ -93,26 +132,30 @@ fun MvCard(
     onClick: (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
-    val shape = RoundedCornerShape(24.dp)
     val dark = LocalIsDark.current
+    val midnight = LocalLook.current == AppLook.MIDNIGHT
+    val shape = RoundedCornerShape(if (midnight) 28.dp else 24.dp)
     val scheme = MaterialTheme.colorScheme
     val press = if (onClick != null) Modifier.bounceClick(onClick) else Modifier
+    val sheen = if (midnight) {
+        Brush.linearGradient(listOf(Color.White.copy(alpha = if (dark) 0.10f else 0.5f), Color.Transparent, Color.Transparent))
+    } else {
+        Brush.verticalGradient(listOf(Color.White.copy(alpha = if (dark) 0.07f else 0.45f), Color.Transparent))
+    }
+    val edge = if (midnight && dark) {
+        Brush.linearGradient(listOf(Silver.copy(alpha = 0.55f), scheme.primary.copy(alpha = 0.30f), Silver.copy(alpha = 0.06f)))
+    } else {
+        Brush.verticalGradient(
+            listOf(Color.White.copy(alpha = if (dark) 0.22f else 0.9f), Color.White.copy(alpha = if (dark) 0.04f else 0.15f)),
+        )
+    }
     Box(
         modifier
             .then(press)
             .fillMaxWidth()
-            .background(scheme.surfaceContainerHigh.copy(alpha = 0.82f), shape)
-            .background(
-                Brush.verticalGradient(listOf(Color.White.copy(alpha = if (dark) 0.07f else 0.45f), Color.Transparent)),
-                shape,
-            )
-            .border(
-                0.8.dp,
-                Brush.verticalGradient(
-                    listOf(Color.White.copy(alpha = if (dark) 0.22f else 0.9f), Color.White.copy(alpha = if (dark) 0.04f else 0.15f)),
-                ),
-                shape,
-            )
+            .background(scheme.surfaceContainerHigh.copy(alpha = if (midnight) 0.9f else 0.82f), shape)
+            .background(sheen, shape)
+            .border(if (midnight) 1.dp else 0.8.dp, edge, shape)
             .clip(shape),
     ) { content() }
 }
@@ -120,27 +163,51 @@ fun MvCard(
 /** Highlight card tinted with the accent colour, used for the main summary on the Today screen. */
 @Composable
 fun GradientCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    val shape = RoundedCornerShape(30.dp)
+    val midnight = LocalLook.current == AppLook.MIDNIGHT
+    val shape = RoundedCornerShape(if (midnight) 34.dp else 30.dp)
     val scheme = MaterialTheme.colorScheme
     val dark = LocalIsDark.current
+    val transition = rememberInfiniteTransition(label = "sheen")
+    val sweep by transition.animateFloat(
+        -0.4f, 1.4f,
+        infiniteRepeatable(tween(4600, easing = LinearEasing), RepeatMode.Restart),
+        label = "sweep",
+    )
+    val fill = if (midnight && dark) {
+        Brush.linearGradient(
+            listOf(scheme.primary.copy(alpha = 0.55f), DeepViolet.copy(alpha = 0.85f), scheme.surfaceContainerLow.copy(alpha = 0.9f)),
+        )
+    } else {
+        Brush.linearGradient(
+            listOf(
+                scheme.primary.copy(alpha = if (dark) 0.42f else 0.55f),
+                scheme.tertiary.copy(alpha = if (dark) 0.20f else 0.30f),
+                scheme.surfaceContainerHigh.copy(alpha = 0.55f),
+            ),
+        )
+    }
+    val edge = if (midnight && dark) {
+        Brush.linearGradient(listOf(Silver.copy(alpha = 0.85f), scheme.primary.copy(alpha = 0.35f), Silver.copy(alpha = 0.10f)))
+    } else {
+        Brush.linearGradient(listOf(Color.White.copy(alpha = if (dark) 0.40f else 0.95f), Color.White.copy(alpha = 0.05f)))
+    }
     Box(
         modifier
             .fillMaxWidth()
-            .background(
-                Brush.linearGradient(
-                    listOf(
-                        scheme.primary.copy(alpha = if (dark) 0.42f else 0.55f),
-                        scheme.tertiary.copy(alpha = if (dark) 0.20f else 0.30f),
-                        scheme.surfaceContainerHigh.copy(alpha = 0.55f),
-                    ),
-                ),
-                shape,
-            )
-            .border(
-                1.dp,
-                Brush.linearGradient(listOf(Color.White.copy(alpha = if (dark) 0.40f else 0.95f), Color.White.copy(alpha = 0.05f))),
-                shape,
-            )
+            .background(fill, shape)
+            .drawBehind {
+                if (midnight) {
+                    val x = size.width * sweep
+                    drawRect(
+                        Brush.linearGradient(
+                            listOf(Color.Transparent, Color.White.copy(alpha = if (dark) 0.11f else 0.28f), Color.Transparent),
+                            start = Offset(x - size.width * 0.25f, 0f),
+                            end = Offset(x + size.width * 0.05f, size.height),
+                        ),
+                    )
+                }
+            }
+            .border(if (midnight) 1.2.dp else 1.dp, edge, shape)
             .clip(shape),
     ) { content() }
 }
@@ -368,6 +435,8 @@ fun StatTile(
                 value,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
+                fontFamily = NumberFont,
+                fontSize = 24.sp,
                 maxLines = 1,
             )
             Text(

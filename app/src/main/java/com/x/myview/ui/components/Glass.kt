@@ -21,12 +21,16 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PointMode
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.x.myview.data.AppLook
 import com.x.myview.ui.theme.LocalGlass
 import com.x.myview.ui.theme.LocalIsDark
+import com.x.myview.ui.theme.LocalLook
 
 /** Floating surface: a calm card normally, translucent with a bright edge in liquid-glass mode. */
 @Composable
@@ -98,30 +102,48 @@ fun CircleIconButton(
     }
 }
 
-/** Base colour with soft glows of the accent colour (top) and a second tint (bottom right). One draw pass, no blur. */
+/**
+ * Base colour with soft glows of the accent colour. The Midnight look adds a violet glow low on the
+ * screen, a silver one top left and a fine dot grid. One draw pass, no blur.
+ */
 @Composable
 fun Modifier.appBackground(): Modifier {
     val bg = MaterialTheme.colorScheme.background
     val tint = MaterialTheme.colorScheme.primary
     val second = MaterialTheme.colorScheme.tertiary
     val dark = LocalIsDark.current
-    val strength = if (dark) 0.30f else 0.22f
-    val strength2 = if (dark) 0.16f else 0.12f
+    val midnight = LocalLook.current == AppLook.MIDNIGHT
+    val strength = if (dark) (if (midnight) 0.22f else 0.30f) else 0.22f
+    val strength2 = if (dark) (if (midnight) 0.26f else 0.16f) else 0.12f
     return this.drawBehind {
         drawRect(bg)
         drawRect(
             Brush.radialGradient(
                 colors = listOf(tint.copy(alpha = strength), Color.Transparent),
-                center = Offset(size.width * 0.5f, 0f),
+                center = Offset(size.width * (if (midnight) 0.15f else 0.5f), 0f),
                 radius = size.width * 1.15f,
             ),
         )
         drawRect(
             Brush.radialGradient(
                 colors = listOf(second.copy(alpha = strength2), Color.Transparent),
-                center = Offset(size.width * 1.0f, size.height * 0.95f),
+                center = Offset(size.width * (if (midnight) 0.6f else 1.0f), size.height * (if (midnight) 1.05f else 0.95f)),
                 radius = size.width * 1.0f,
             ),
         )
+        if (midnight && dark) {
+            val step = 26.dp.toPx()
+            val points = ArrayList<Offset>()
+            var y = step / 2f
+            while (y < size.height) {
+                var x = step / 2f
+                while (x < size.width) {
+                    points.add(Offset(x, y))
+                    x += step
+                }
+                y += step
+            }
+            drawPoints(points, PointMode.Points, Color.White.copy(alpha = 0.055f), 1.6.dp.toPx(), StrokeCap.Round)
+        }
     }
 }
