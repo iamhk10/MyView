@@ -228,7 +228,7 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                             .clip(RoundedCornerShape(24.dp)),
                     )
                     Text("MyView", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text("Version 1.2.0", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Version 1.2.1", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(
                         "Habits, workouts, water, steps, sleep, weight and mood in one place. Every feature is free. Your data stays on your phone; the app has no internet access.",
                         style = MaterialTheme.typography.bodyMedium,

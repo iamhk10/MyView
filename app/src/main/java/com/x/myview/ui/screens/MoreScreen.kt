@@ -225,7 +225,7 @@ fun BackupScreen(vm: MainViewModel, onBack: () -> Unit) {
             }
             Box(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
                 Text(
-                    "Settings and step history are not part of a backup. The file is plain text (JSON) and never leaves your phone unless you share it.",
+                    "The backup holds habits, workouts, water, sleep, weight, mood, step history, focus and breathing sessions, and your settings. Backups from older versions restore the logs only. The file is plain text (JSON) and never leaves your phone unless you share it.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
