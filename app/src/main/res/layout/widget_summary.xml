@@ -6,7 +6,7 @@
     android:background="@drawable/widget_bg"
     android:gravity="center_vertical"
     android:orientation="horizontal"
-    android:padding="10dp">
+    android:padding="12dp">
 
     <LinearLayout
         android:id="@+id/s_box_steps"
@@ -16,19 +16,34 @@
         android:gravity="center"
         android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/s_val_steps"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:textColor="#FFFFFFFF"
-            android:textSize="19sp"
-            android:textStyle="bold" />
+        <FrameLayout
+            android:layout_width="58dp"
+            android:layout_height="58dp">
+
+            <ImageView
+                android:id="@+id/s_ring_steps"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="Steps progress"
+                android:scaleType="fitCenter" />
+
+            <TextView
+                android:id="@+id/s_val_steps"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:maxLines="1"
+                android:textColor="#FFFFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </FrameLayout>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:letterSpacing="0.08"
             android:text="Steps"
             android:textColor="#B3FFFFFF"
             android:textSize="11sp" />
@@ -42,19 +57,34 @@
         android:gravity="center"
         android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/s_val_water"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:textColor="#FFFFFFFF"
-            android:textSize="19sp"
-            android:textStyle="bold" />
+        <FrameLayout
+            android:layout_width="58dp"
+            android:layout_height="58dp">
+
+            <ImageView
+                android:id="@+id/s_ring_water"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="Water progress"
+                android:scaleType="fitCenter" />
+
+            <TextView
+                android:id="@+id/s_val_water"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:maxLines="1"
+                android:textColor="#FFFFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </FrameLayout>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:letterSpacing="0.08"
             android:text="Water"
             android:textColor="#B3FFFFFF"
             android:textSize="11sp" />
@@ -68,19 +98,34 @@
         android:gravity="center"
         android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/s_val_reps"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:textColor="#FFFFFFFF"
-            android:textSize="19sp"
-            android:textStyle="bold" />
+        <FrameLayout
+            android:layout_width="58dp"
+            android:layout_height="58dp">
+
+            <ImageView
+                android:id="@+id/s_ring_reps"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="Reps progress"
+                android:scaleType="fitCenter" />
+
+            <TextView
+                android:id="@+id/s_val_reps"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:maxLines="1"
+                android:textColor="#FFFFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </FrameLayout>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:letterSpacing="0.08"
             android:text="Reps"
             android:textColor="#B3FFFFFF"
             android:textSize="11sp" />
@@ -94,19 +139,34 @@
         android:gravity="center"
         android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/s_val_habits"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:textColor="#FFFFFFFF"
-            android:textSize="19sp"
-            android:textStyle="bold" />
+        <FrameLayout
+            android:layout_width="58dp"
+            android:layout_height="58dp">
+
+            <ImageView
+                android:id="@+id/s_ring_habits"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="Habits progress"
+                android:scaleType="fitCenter" />
+
+            <TextView
+                android:id="@+id/s_val_habits"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:maxLines="1"
+                android:textColor="#FFFFFFFF"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+        </FrameLayout>
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="3dp"
+            android:letterSpacing="0.08"
             android:text="Habits"
             android:textColor="#B3FFFFFF"
             android:textSize="11sp" />
