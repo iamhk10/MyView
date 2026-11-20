@@ -9,7 +9,10 @@ import android.graphics.BlurMaskFilter
 import android.graphics.Canvas
 import android.graphics.Matrix
 import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.Rect
 import android.graphics.RectF
+import android.graphics.Typeface
 import android.graphics.SweepGradient
 import android.widget.RemoteViews
 import androidx.compose.ui.graphics.toArgb
@@ -51,6 +54,7 @@ abstract class BaseWidget : AppWidgetProvider() {
 class HabitsWidget : BaseWidget()
 class WaterWidget : BaseWidget()
 class SummaryWidget : BaseWidget()
+class StepsWidget : BaseWidget()
 
 private class Snapshot(
     val today: Long,
@@ -82,9 +86,10 @@ object WidgetUpdater {
         val habitIds = mgr.getAppWidgetIds(ComponentName(app, HabitsWidget::class.java))
         val waterIds = mgr.getAppWidgetIds(ComponentName(app, WaterWidget::class.java))
         val summaryIds = mgr.getAppWidgetIds(ComponentName(app, SummaryWidget::class.java))
-        if (habitIds.isEmpty() && waterIds.isEmpty() && summaryIds.isEmpty()) return
+        val stepsIds = mgr.getAppWidgetIds(ComponentName(app, StepsWidget::class.java))
+        if (habitIds.isEmpty() && waterIds.isEmpty() && summaryIds.isEmpty() && stepsIds.isEmpty()) return
 
-        if (syncSteps && summaryIds.isNotEmpty()) {
+        if (syncSteps && (summaryIds.isNotEmpty() || stepsIds.isNotEmpty())) {
             val tracker = (app as MyViewApp).container.stepTracker
             if (tracker.isSupported && !tracker.isLive) tracker.readOnce(1500)
         }
@@ -92,6 +97,7 @@ object WidgetUpdater {
         if (habitIds.isNotEmpty()) mgr.updateAppWidget(habitIds, habitsViews(app, snap))
         if (waterIds.isNotEmpty()) mgr.updateAppWidget(waterIds, waterViews(app, snap))
         if (summaryIds.isNotEmpty()) mgr.updateAppWidget(summaryIds, summaryViews(app, snap))
+        if (stepsIds.isNotEmpty()) mgr.updateAppWidget(stepsIds, stepsViews(app, snap))
     }
 
     private suspend fun load(ctx: Context): Snapshot {
@@ -221,6 +227,125 @@ object WidgetUpdater {
         )
         v.setTextViewText(R.id.s_val_habits, "$habitsDone/${snap.planned.size}")
         return v
+    }
+
+    // ---------- Steps only ----------
+
+    private fun stepsViews(ctx: Context, snap: Snapshot): RemoteViews {
+        val v = RemoteViews(ctx.packageName, R.layout.widget_steps)
+        v.setOnClickPendingIntent(R.id.w_root, Reminders.openAppPending(ctx))
+        val goal = snap.settings.stepGoal.coerceAtLeast(1)
+        v.setImageViewBitmap(R.id.st_card, stepsCardBitmap(snap.steps, goal, snap.stepsSupported))
+        v.setContentDescription(
+            R.id.st_card,
+            if (snap.stepsSupported) "${snap.steps} steps today, goal $goal" else "No step sensor on this phone",
+        )
+        return v
+    }
+
+    /**
+     * The whole "steps only" card as one picture: a blue panel with the step count stacked in two
+     * lines, and a white panel with a dial whose hand and arc show progress towards the goal.
+     */
+    private fun stepsCardBitmap(steps: Int, goal: Int, supported: Boolean): Bitmap {
+        val w = 480
+        val h = 480
+        val blue = 0xFF4A6CFF.toInt()
+        val ink = 0xFF3A3A3F.toInt()
+        val grey = 0xFF9A9AA2.toInt()
+        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        val panelW = w * 0.41f
+
+        // Card shape: rounded square, white, with the blue panel clipped to its left side.
+        val clip = Path().apply { addRoundRect(RectF(0f, 0f, w.toFloat(), h.toFloat()), 76f, 76f, Path.Direction.CW) }
+        canvas.save()
+        canvas.clipPath(clip)
+        paint.color = 0xFFFFFFFF.toInt()
+        canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), paint)
+        paint.color = blue
+        canvas.drawRect(0f, 0f, panelW, h.toFloat(), paint)
+        canvas.restore()
+
+        // Stacked digits (like a clock's hour over minute): 8240 -> 82 / 40, 523 -> 05 / 23, 12345 -> 123 / 45.
+        val digits = if (supported) steps.coerceAtLeast(0).toString().padStart(4, '0') else "----"
+        val top = digits.substring(0, (digits.length + 1) / 2)
+        val bottom = digits.substring((digits.length + 1) / 2)
+        val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = 0xFFFFFFFF.toInt()
+            typeface = Typeface.create("sans-serif-condensed-light", Typeface.NORMAL)
+            textAlign = Paint.Align.CENTER
+        }
+        var size = 190f
+        val maxW = panelW - 44f
+        text.textSize = size
+        while (size > 40f && maxOf(text.measureText(top), text.measureText(bottom)) > maxW) {
+            size -= 4f
+            text.textSize = size
+        }
+        val b = Rect()
+        text.getTextBounds("0", 0, 1, b)
+        val lineH = b.height().toFloat()
+        val gap = h * 0.07f
+        val startY = (h - (2 * lineH + gap)) / 2f + lineH
+        canvas.drawText(top, panelW / 2f, startY, text)
+        canvas.drawText(bottom, panelW / 2f, startY + lineH + gap, text)
+
+        // Dial on the white panel.
+        val cx = panelW + (w - panelW) / 2f
+        val cy = h * 0.5f
+        val radius = 92f
+        val progress = if (supported) (steps.toFloat() / goal).coerceIn(0f, 1f) else 0f
+        val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = 16f
+            strokeCap = Paint.Cap.ROUND
+            color = 0xFFEFEFF3.toInt()
+        }
+        val rect = RectF(cx - radius, cy - radius, cx + radius, cy + radius)
+        canvas.drawArc(rect, 0f, 360f, false, ring)
+        if (progress > 0.001f) {
+            ring.color = blue
+            canvas.drawArc(rect, -90f, 360f * progress, false, ring)
+        }
+
+        // Hand points at the progress angle (12 o'clock = 0, full circle = goal reached).
+        val ang = Math.toRadians((-90.0 + 360.0 * progress))
+        val dx = Math.cos(ang).toFloat()
+        val dy = Math.sin(ang).toFloat()
+        val hand = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeCap = Paint.Cap.ROUND
+            color = ink
+            strokeWidth = 7f
+        }
+        canvas.drawLine(cx, cy, cx + dx * (radius - 34f), cy + dy * (radius - 34f), hand)
+        // Short thick blue marker on the ring end, like the reference's hour hand.
+        hand.color = blue
+        hand.strokeWidth = 20f
+        canvas.drawLine(cx + dx * (radius - 30f), cy + dy * (radius - 30f), cx + dx * (radius - 8f), cy + dy * (radius - 8f), hand)
+        // Hub.
+        paint.color = 0xFFEFEFF3.toInt()
+        canvas.drawCircle(cx, cy, 30f, paint)
+        paint.color = 0xFFFFFFFF.toInt()
+        canvas.drawCircle(cx, cy, 10f, paint)
+
+        // Labels.
+        val label = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = grey
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            textAlign = Paint.Align.CENTER
+            textSize = 26f
+            letterSpacing = 0.2f
+        }
+        canvas.drawText("STEPS", cx, h * 0.15f, label)
+        label.letterSpacing = 0f
+        label.textSize = 28f
+        label.color = ink
+        val foot = if (supported) "${(steps.toLong() * 100 / goal).coerceAtMost(999)}% of ${String.format(java.util.Locale.US, "%,d", goal)}" else "No step sensor"
+        canvas.drawText(foot, cx, h * 0.89f, label)
+        return bmp
     }
 
     /** 8200 -> "8.2k", 12400 -> "12k", small numbers stay as they are. */
