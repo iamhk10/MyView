@@ -2,7 +2,7 @@
 
 Habits, workouts and water in one free Android app. No internet access, no ads, all data stays on the phone.
 
-**Features (v1.1.0)**
+**Features (v1.2.0)**
 - Habit tracker with streaks, best streak, 12-week heatmap, weekday schedule
 - Workout counter: push-ups, pull-ups, squats and more (reps), plank and more (timer), custom exercises, daily goals, 7-day chart
 - Water tracker: daily goal, quick add, custom amount, history, 7-day chart
@@ -14,7 +14,9 @@ Habits, workouts and water in one free Android app. No internet access, no ads, 
 - Backup and restore of all data as one JSON file (no internet needed)
 - Premium design: daily score dashboard, animated rings, water wave, confetti on goals, springy navigation
 - Themes: Auto/Light/Dark/AMOLED, 9 accent colours, wallpaper colours, liquid glass, 6 font styles, text size
-- Adaptive launcher icon with Android 13 themed (monochrome) version
+- Level, XP and 14 badges; focus timer (minutes saved per day); guided breathing; daily quote
+- Midnight look (silver and violet glass, animated hero card, dot-grid background) or the Classic look; separate heading font (Black, Condensed, Serif, Script, Casual, Small caps)
+- Adaptive launcher icon (the M logo) with Android 13 themed (monochrome) version
 
 ## Build the APK (GitHub Actions)
 1. Create a new GitHub repository (public, so anyone can download).
