@@ -1,6 +1,10 @@
 package com.x.myview.ui.screens
 
+import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -13,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Settings
@@ -25,11 +30,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -37,6 +44,7 @@ import androidx.compose.ui.unit.sp
 import com.x.myview.data.db.KIND_TIME
 import com.x.myview.domain.currentStreak
 import com.x.myview.domain.exerciseTotal
+import com.x.myview.domain.quoteFor
 import com.x.myview.domain.scheduledHabits
 import com.x.myview.domain.waterTotal
 import com.x.myview.domain.workoutProgress
@@ -52,6 +60,9 @@ import com.x.myview.ui.components.StatTile
 import com.x.myview.ui.components.iconFor
 import com.x.myview.ui.components.rememberAnimatedInt
 import com.x.myview.ui.components.staggerIn
+import com.x.myview.ui.theme.NumberFont
+import com.x.myview.ui.theme.QuoteFont
+import com.x.myview.ui.theme.ScriptFont
 import com.x.myview.ui.theme.StepsTeal
 import com.x.myview.ui.theme.WaterBlue
 import com.x.myview.ui.theme.bottomInset
@@ -120,14 +131,32 @@ fun TodayScreen(vm: MainViewModel, onOpen: (String) -> Unit, onGoTab: (Int) -> U
     val score = if (goals.isEmpty()) 0f else goals.average().toFloat()
     val completeGoals = goals.count { it >= 1f }
     val scorePercent = rememberAnimatedInt((score * 100).toInt())
+    val awards = rememberAwards(vm)
+    var quoteShift by remember { mutableIntStateOf(0) }
 
     LazyColumn(
         Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = bottomInset()),
     ) {
         item {
-            ScreenHeader(greeting(), niceDate(today)) {
-                CircleIconButton(Icons.Rounded.Settings, "Settings", { onOpen("settings") })
+            ScreenHeader(greeting(), niceDate(today), titleFont = ScriptFont, titleSize = 38.sp) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Box(
+                        Modifier
+                            .clip(RoundedCornerShape(50))
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f))
+                            .clickable { onOpen("awards") }
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                    ) {
+                        Text(
+                            "Lv ${awards.level}",
+                            fontFamily = NumberFont,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    CircleIconButton(Icons.Rounded.Settings, "Settings", { onOpen("settings") })
+                }
             }
         }
 
@@ -145,7 +174,7 @@ fun TodayScreen(vm: MainViewModel, onOpen: (String) -> Unit, onGoTab: (Int) -> U
                 ) {
                     ProgressRing(score, size = 118.dp, stroke = 13.dp) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("$scorePercent%", fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                            Text("$scorePercent%", fontSize = 32.sp, fontFamily = NumberFont, fontWeight = FontWeight.Bold)
                             Text("score", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
@@ -176,6 +205,40 @@ fun TodayScreen(vm: MainViewModel, onOpen: (String) -> Unit, onGoTab: (Int) -> U
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 6.dp)
                     .staggerIn(1),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                QuickTile(iconFor("timer"), itemColor(6), "Focus", Modifier.weight(1f)) { onOpen("focus") }
+                QuickTile(iconFor("spa"), StepsTeal, "Breathe", Modifier.weight(1f)) { onOpen("breathe") }
+                QuickTile(iconFor("star"), itemColor(5), "Awards", Modifier.weight(1f)) { onOpen("awards") }
+            }
+        }
+        item {
+            MvCard(
+                Modifier
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                    .staggerIn(2),
+                onClick = { quoteShift += 1 },
+            ) {
+                Crossfade(quoteFor(today, quoteShift), label = "quote") { q ->
+                    Text(
+                        "\u201C$q\u201D",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 18.dp),
+                        fontFamily = QuoteFont,
+                        fontSize = 17.sp,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f),
+                    )
+                }
+            }
+        }
+        item {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                    .staggerIn(3),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 StatTile(
@@ -343,6 +406,28 @@ fun EmptyHint(text: String, action: String?, onAction: () -> Unit) {
             if (action != null) {
                 TextButton(onClick = onAction) { Text(action) }
             }
+        }
+    }
+}
+
+@Composable
+private fun QuickTile(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    color: androidx.compose.ui.graphics.Color,
+    label: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    MvCard(modifier, onClick = onClick) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Icon(icon, null, tint = color, modifier = Modifier.size(26.dp))
+            Spacer(Modifier.height(6.dp))
+            Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
         }
     }
 }

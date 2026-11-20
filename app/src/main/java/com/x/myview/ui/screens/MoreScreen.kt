@@ -76,6 +76,18 @@ fun MoreScreen(vm: MainViewModel, onOpen: (String) -> Unit) {
         }
         item {
             MoreRow(
+                iconFor("star"), itemColor(5), "Level and awards",
+                "XP, levels and badges", { onOpen("awards") }, Modifier.staggerIn(0),
+            )
+        }
+        item {
+            MoreRow(iconFor("timer"), itemColor(6), "Focus timer", "Deep work sessions, saved per day", { onOpen("focus") }, Modifier.staggerIn(1))
+        }
+        item {
+            MoreRow(iconFor("spa"), StepsTeal, "Breathe", "Guided breathing to calm down", { onOpen("breathe") }, Modifier.staggerIn(2))
+        }
+        item {
+            MoreRow(
                 Icons.Rounded.BarChart, MaterialTheme.colorScheme.primary, "Stats and history",
                 "Day-by-day charts with highest and lowest", { onOpen("history:steps") }, Modifier.staggerIn(0),
             )

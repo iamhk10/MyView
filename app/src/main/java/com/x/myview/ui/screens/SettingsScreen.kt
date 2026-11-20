@@ -19,7 +19,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -40,6 +43,9 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.x.myview.R
+import com.x.myview.data.AppLook
+import com.x.myview.data.DisplayFont
 import com.x.myview.data.FontOption
 import com.x.myview.data.TextSize
 import com.x.myview.data.ThemeMode
@@ -77,6 +83,12 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                         ChoiceChip("Dark", s.themeMode == ThemeMode.DARK, { vm.updateSettings { it.copy(themeMode = ThemeMode.DARK) } })
                         ChoiceChip("AMOLED", s.themeMode == ThemeMode.AMOLED, { vm.updateSettings { it.copy(themeMode = ThemeMode.AMOLED) } })
                     }
+                    Text("Look", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    ChipFlow {
+                        AppLook.values().forEach { l ->
+                            ChoiceChip(l.label, s.look == l, { vm.updateSettings { it.copy(look = l) } })
+                        }
+                    }
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         ACCENTS.chunked(5).forEachIndexed { rowIndex, row ->
                             Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -113,6 +125,12 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                     ChipFlow {
                         FontOption.values().forEach { f ->
                             ChoiceChip(f.label, s.fontOption == f, { vm.updateSettings { it.copy(fontOption = f) } })
+                        }
+                    }
+                    Text("Heading font", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    ChipFlow {
+                        DisplayFont.values().forEach { f ->
+                            ChoiceChip(f.label, s.displayFont == f, { vm.updateSettings { it.copy(displayFont = f) } })
                         }
                     }
                     Text("Text size", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
@@ -202,8 +220,15 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
             SectionTitle("About")
             MvCard(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
                 Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Image(
+                        painterResource(R.drawable.logo_full),
+                        contentDescription = "MyView logo",
+                        modifier = Modifier
+                            .size(96.dp)
+                            .clip(RoundedCornerShape(24.dp)),
+                    )
                     Text("MyView", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    Text("Version 1.1.0", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("Version 1.2.0", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(
                         "Habits, workouts, water, steps, sleep, weight and mood in one place. Every feature is free. Your data stays on your phone; the app has no internet access.",
                         style = MaterialTheme.typography.bodyMedium,

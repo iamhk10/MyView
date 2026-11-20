@@ -104,6 +104,7 @@ fun HistoryScreen(vm: MainViewModel, start: String, onBack: () -> Unit) {
     val habitDone by vm.habitDone.collectAsState()
     val sleep by vm.sleepLogs.collectAsState()
     val weights by vm.weightLogs.collectAsState()
+    val focusMin by vm.focusMinutes.collectAsState()
     val primary = MaterialTheme.colorScheme.primary
 
     var metricKey by rememberSaveable { mutableStateOf(start) }
@@ -111,11 +112,11 @@ fun HistoryScreen(vm: MainViewModel, start: String, onBack: () -> Unit) {
     var asLine by rememberSaveable { mutableStateOf(false) }
     var selected by remember { mutableStateOf<Long?>(null) }
 
-    val metrics = remember(steps, waterLogs, exercises, exerciseLogs, habits, habitDone, sleep, weights, settings, today, primary) {
+    val metrics = remember(steps, waterLogs, exercises, exerciseLogs, habits, habitDone, sleep, weights, focusMin, settings, today, primary) {
         buildMetrics(
             vm.stepsSupported, steps, waterLogs.let { waterByDay(it) }, exercises.filter { it.kind == KIND_REPS }.map { it.id }.toSet(),
             exerciseLogs.groupBy { it.day }, habits, habitDone, sleep.associate { it.day to it.minutes },
-            weights.associate { it.day to it.kg }, settings, today, primary,
+            weights.associate { it.day to it.kg }, focusMin, settings, today, primary,
         )
     }
     val metric = metrics.firstOrNull { it.key == metricKey } ?: metrics.first()
@@ -229,6 +230,7 @@ fun HistoryScreen(vm: MainViewModel, start: String, onBack: () -> Unit) {
                                 StatPill("${recorded.size} / ${days.size}", "Days recorded", Modifier.weight(1f))
                             }
                         }
+                        WeekCompare(metric, today)
                         if (metric.goal != null && metric.goalWord.isNotEmpty()) {
                             Text(
                                 "${metric.goalWord}: $goalHits of ${recorded.size} recorded days",
@@ -259,6 +261,43 @@ fun HistoryScreen(vm: MainViewModel, start: String, onBack: () -> Unit) {
                     tagColor = if (tag == "Highest") GOLD else LOW_RED,
                 )
             }
+        }
+    }
+}
+
+/** "This week vs last week": the average of the recorded days, with the change in percent. */
+@Composable
+private fun WeekCompare(metric: Metric, today: Long) {
+    val now = (today - 6..today).mapNotNull { metric.values[it] }
+    val before = (today - 13..today - 7).mapNotNull { metric.values[it] }
+    if (now.isEmpty() || before.isEmpty()) return
+    val a = now.average().toFloat()
+    val b = before.average().toFloat()
+    val change = if (b == 0f) null else (a - b) / b * 100f
+    MvCard {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("This week vs last week", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "${metric.format(a)}  vs  ${metric.format(b)}",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                if (change != null) {
+                    val up = change >= 0f
+                    Text(
+                        (if (up) "▲ " else "▼ ") + String.format(Locale.US, "%.0f%%", kotlin.math.abs(change)),
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = if (up) Color(0xFF7BDC8A) else LOW_RED,
+                    )
+                }
+            }
+            Text(
+                "Average of the days recorded in each week",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -419,6 +458,7 @@ private fun buildMetrics(
     habitDone: Map<Long, Set<Long>>,
     sleepMinutes: Map<Long, Int>,
     weightKg: Map<Long, Float>,
+    focusMinutes: Map<Long, Int>,
     settings: com.x.myview.data.AppSettings,
     today: Long,
     primary: Color,
@@ -455,6 +495,11 @@ private fun buildMetrics(
         "sleep", "Sleep", itemColor(0),
         sleepMinutes.filterValues { it > 0 }.mapValues { it.value.toFloat() },
         settings.sleepGoalMin.toFloat(), { formatSleep(it.toInt()) }, false, "Sleep goal met",
+    )
+    list += Metric(
+        "focus", "Focus", itemColor(2),
+        focusMinutes.filterValues { it > 0 }.mapValues { it.value.toFloat() },
+        null, { "${it.toInt()} min" }, true, "",
     )
     list += Metric(
         "weight", "Weight", itemColor(3), weightKg,
