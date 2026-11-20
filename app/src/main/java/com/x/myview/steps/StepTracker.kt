@@ -43,6 +43,23 @@ class StepTracker(private val context: Context) {
 
     fun stepsFor(day: Long): Int = _steps.value[day] ?: 0
 
+    /**
+     * Swaps the saved daily totals for [days] (used when restoring a backup). Today keeps the larger of
+     * the two numbers so steps counted since the backup are not lost. The sensor's starting point is
+     * not touched, so counting carries on normally.
+     */
+    @Synchronized
+    fun replaceDays(days: Map<Long, Int>) {
+        val today = todayEpochDay()
+        val merged = HashMap(days)
+        merged[today] = maxOf(days[today] ?: 0, _steps.value[today] ?: 0)
+        val editor = prefs.edit()
+        for (key in prefs.all.keys) if (key.startsWith("d_")) editor.remove(key)
+        for ((day, n) in merged) if (n > 0) editor.putInt("d_$day", n)
+        editor.apply()
+        _steps.value = merged.filterValues { it > 0 }
+    }
+
     private fun load(): Map<Long, Int> {
         val cutoff = todayEpochDay() - 3650
         val map = HashMap<Long, Int>()
