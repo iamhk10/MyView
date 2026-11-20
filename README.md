@@ -2,16 +2,16 @@
 
 Habits, workouts and water in one free Android app. No internet access, no ads, all data stays on the phone.
 
-**Features (v1.2.0)**
+**Features (v1.2.1)**
 - Habit tracker with streaks, best streak, 12-week heatmap, weekday schedule
 - Workout counter: push-ups, pull-ups, squats and more (reps), plank and more (timer), custom exercises, daily goals, 7-day chart
 - Water tracker: daily goal, quick add, custom amount, history, 7-day chart
 - Step counter (only on phones with a step sensor; hidden otherwise), daily goal, 7-day chart; optional live counting service keeps the count and widget updating within seconds
 - Stats and history: every day stored, bar or line chart over 7/30/90 days, highest, lowest, average and total, day-by-day list (steps, water, workout, habits, sleep, weight)
 - Reminders: per habit, water (every 1-6 h), daily workout; notification buttons "Mark done" and "+ ml"
-- Home-screen widgets: Habits (tap to tick), Water (quick add), Summary (steps, water, reps, habits)
+- Home-screen widgets in a modern glass style: Habits (progress bar, tap to tick), Water (glowing ring, quick add), Summary (four progress rings: steps, water, reps, habits)
 - Sleep log with quality stars and goal, weight log with trend chart and kg/lb, mood diary with 4-week map
-- Backup and restore of all data as one JSON file (no internet needed)
+- Backup and restore of everything (logs, steps, focus, breathing, settings) as one JSON file; older backups still restore (no internet needed)
 - Premium design: daily score dashboard, animated rings, water wave, confetti on goals, springy navigation
 - Themes: Auto/Light/Dark/AMOLED, 9 accent colours, wallpaper colours, liquid glass, 6 font styles, text size
 - Level, XP and 14 badges; focus timer (minutes saved per day); guided breathing; daily quote
