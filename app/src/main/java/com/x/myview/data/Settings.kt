@@ -16,6 +16,20 @@ enum class FontOption(val label: String) {
     MONO("Mono"),
 }
 
+/** Overall look. Midnight is the silver and violet glass style; Classic is the softer first design. */
+enum class AppLook(val label: String) { MIDNIGHT("Midnight"), CLASSIC("Classic") }
+
+/** Font for big titles and numbers (the body text uses [FontOption]). */
+enum class DisplayFont(val label: String) {
+    BLACK("Black"),
+    CONDENSED("Condensed"),
+    SERIF("Serif"),
+    SCRIPT("Script"),
+    CASUAL("Casual"),
+    SMALL_CAPS("Small caps"),
+    SAME("Same as text"),
+}
+
 enum class TextSize(val label: String, val scale: Float) {
     SMALL("Small", 0.9f),
     NORMAL("Normal", 1.0f),
@@ -53,6 +67,8 @@ data class AppSettings(
     val celebrate: Boolean = true,
     /** Keep counting steps in the background with a quiet notification, so widgets update at once. */
     val liveSteps: Boolean = true,
+    val look: AppLook = AppLook.MIDNIGHT,
+    val displayFont: DisplayFont = DisplayFont.BLACK,
 )
 
 /** Small settings store on top of SharedPreferences. Exposes the settings as a StateFlow. */
@@ -84,6 +100,8 @@ class SettingsStore(context: Context) {
             haptics = prefs.getBoolean("haptics", true),
             celebrate = prefs.getBoolean("celebrate", true),
             liveSteps = prefs.getBoolean("liveSteps", true),
+            look = AppLook.values().getOrElse(prefs.getInt("look", 0)) { AppLook.MIDNIGHT },
+            displayFont = DisplayFont.values().getOrElse(prefs.getInt("displayFont", 0)) { DisplayFont.BLACK },
         )
     }
 
@@ -110,6 +128,8 @@ class SettingsStore(context: Context) {
             .putBoolean("haptics", next.haptics)
             .putBoolean("celebrate", next.celebrate)
             .putBoolean("liveSteps", next.liveSteps)
+            .putInt("look", next.look.ordinal)
+            .putInt("displayFont", next.displayFont.ordinal)
             .apply()
     }
 }
