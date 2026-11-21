@@ -8,7 +8,39 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import com.x.myview.data.AppLook
+import com.x.myview.ui.components.BENTO_DOCK_SPACE
+import com.x.myview.ui.components.BentoDock
+import com.x.myview.ui.components.bounceClick
+import com.x.myview.ui.components.hairline
+import com.x.myview.ui.components.iconFor
+import com.x.myview.ui.theme.LocalIsDark
+import com.x.myview.util.formatMl
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
@@ -71,6 +103,15 @@ private val TABS = listOf(
     NavTab("More", Icons.Rounded.MoreHoriz),
 )
 
+/** The four dock icons of the Bento look. Water has no icon of its own: it opens from Today, More and the + sheet. */
+private val DOCK_TABS = listOf(
+    NavTab("Today", Icons.Rounded.Home),
+    NavTab("Habits", Icons.Rounded.TaskAlt),
+    NavTab("Workout", Icons.Rounded.FitnessCenter),
+    NavTab("More", Icons.Rounded.GridView),
+)
+private val DOCK_TO_TAB = intArrayOf(0, 1, 2, 4)
+
 @Composable
 fun MyViewRoot(vm: MainViewModel) {
     val settings by vm.settings.collectAsState()
@@ -93,14 +134,24 @@ private fun RootContent(vm: MainViewModel) {
     BackHandler(enabled = overlay != null) { overlay = null }
     BackHandler(enabled = overlay == null && tab != 0) { tab = 0 }
 
+    val settings by vm.settings.collectAsState()
+    val bento = settings.look == AppLook.BENTO
     val navBottom = with(LocalDensity.current) { WindowInsets.navigationBars.getBottom(this).toDp() }
-    val inset = NAV_BAR_HEIGHT + 30.dp + navBottom
+    val inset = (if (bento) BENTO_DOCK_SPACE else NAV_BAR_HEIGHT + 30.dp) + navBottom
 
     Box(
         Modifier
             .fillMaxSize()
             .appBackground(),
+        contentAlignment = Alignment.TopCenter,
     ) {
+      // Bento keeps the app in a phone-width column (max 430dp), centred on tablets and wide screens.
+      Box(
+        Modifier
+            .fillMaxHeight()
+            .widthIn(max = if (bento) 430.dp else Dp.Infinity)
+            .fillMaxWidth(),
+      ) {
         AnimatedContent(
             targetState = overlay,
             modifier = Modifier.fillMaxSize(),
@@ -117,12 +168,13 @@ private fun RootContent(vm: MainViewModel) {
             label = "overlay",
         ) { current ->
             if (current == null) {
-                TabsHost(vm, tab, { tab = it }, { overlay = it }, inset, navBottom)
+                TabsHost(vm, tab, { tab = it }, { overlay = it }, inset, navBottom, bento)
             } else {
                 OverlayHost(vm, current, open = { overlay = it }, close = { overlay = null })
             }
         }
         ConfettiBurst(celebrate)
+      }
     }
 }
 
@@ -134,7 +186,9 @@ private fun TabsHost(
     onOpen: (String) -> Unit,
     inset: Dp,
     navBottom: Dp,
+    bento: Boolean,
 ) {
+    var showAdd by remember { mutableStateOf(false) }
     Box(Modifier.fillMaxSize()) {
         CompositionLocalProvider(LocalBottomInset provides inset) {
             AnimatedContent(
@@ -162,14 +216,88 @@ private fun TabsHost(
                 }
             }
         }
-        FloatingNavBar(
-            tabs = TABS,
-            selected = tab,
-            onSelect = onTab,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(start = 16.dp, end = 16.dp, bottom = 12.dp + navBottom),
-        )
+        if (bento) {
+            BentoDock(
+                tabs = DOCK_TABS,
+                selected = DOCK_TO_TAB.indexOf(tab),
+                onSelect = { onTab(DOCK_TO_TAB[it]) },
+                onAdd = { showAdd = true },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(start = 24.dp, end = 24.dp, bottom = 18.dp + navBottom),
+            )
+        } else {
+            FloatingNavBar(
+                tabs = TABS,
+                selected = tab,
+                onSelect = onTab,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(start = 16.dp, end = 16.dp, bottom = 12.dp + navBottom),
+            )
+        }
+    }
+    if (showAdd) {
+        QuickAddSheet(vm, onDismiss = { showAdd = false }, onOpen = onOpen, onGoTab = onTab)
+    }
+}
+
+private class QuickAction(val icon: androidx.compose.ui.graphics.vector.ImageVector, val label: String, val run: () -> Unit)
+
+/** The centre "+" of the Bento dock: the most common things to log, one tap away. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun QuickAddSheet(vm: MainViewModel, onDismiss: () -> Unit, onOpen: (String) -> Unit, onGoTab: (Int) -> Unit) {
+    val settings by vm.settings.collectAsState()
+    val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val dark = LocalIsDark.current
+    val actions = listOf(
+        QuickAction(iconFor("water"), "Water ${formatMl(settings.glassMl)}") { vm.addWater(settings.glassMl) },
+        QuickAction(Icons.Rounded.Add, "New habit") { onOpen("habitedit:0") },
+        QuickAction(Icons.Rounded.FitnessCenter, "Workout") { onGoTab(2) },
+        QuickAction(iconFor("heart"), "Mood") { onOpen("mood") },
+        QuickAction(iconFor("sleep"), "Sleep") { onOpen("sleep") },
+        QuickAction(iconFor("fitness"), "Weight") { onOpen("weight") },
+    )
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheet,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    ) {
+        Column(Modifier.padding(start = 18.dp, end = 18.dp, bottom = 28.dp)) {
+            Text("Quick add", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Text(
+                "Log something in one tap",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(16.dp))
+            actions.chunked(3).forEach { rowItems ->
+                Row(Modifier.fillMaxWidth().padding(bottom = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    rowItems.forEach { a ->
+                        val shape = RoundedCornerShape(22.dp)
+                        Column(
+                            Modifier
+                                .weight(1f)
+                                .clip(shape)
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f), shape)
+                                .border(1.dp, hairline(dark), shape)
+                                .bounceClick {
+                                    onDismiss()
+                                    a.run()
+                                }
+                                .padding(vertical = 18.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Icon(a.icon, null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(26.dp))
+                            Spacer(Modifier.height(8.dp))
+                            Text(a.label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
