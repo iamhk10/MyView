@@ -57,9 +57,13 @@ import com.x.myview.ui.theme.DeepViolet
 import com.x.myview.ui.theme.LocalIsDark
 import com.x.myview.ui.theme.LocalLook
 import com.x.myview.ui.theme.NumberFont
+import com.x.myview.ui.theme.statFont
 import com.x.myview.ui.theme.Silver
 import com.x.myview.ui.theme.onColorFor
 import com.x.myview.util.oneLetterDay
+
+/** The 1px hairline border of Bento cards: white at 8% on dark, a faint slate on light. */
+fun hairline(dark: Boolean): Color = if (dark) Color.White.copy(alpha = 0.08f) else Color(0xFF0F172A).copy(alpha = 0.08f)
 
 /** Big page title with an optional line below it and actions on the right. */
 @Composable
@@ -71,6 +75,33 @@ fun ScreenHeader(
     titleSize: TextUnit = TextUnit.Unspecified,
     actions: @Composable () -> Unit = {},
 ) {
+    if (LocalLook.current == AppLook.BENTO) {
+        // Borderless header: small muted line above a bold title, the action button on the right.
+        Row(
+            modifier
+                .fillMaxWidth()
+                .padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                if (subtitle != null) {
+                    Text(
+                        subtitle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Text(
+                    title,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+            actions()
+        }
+        return
+    }
     Row(
         modifier
             .fillMaxWidth()
@@ -93,7 +124,16 @@ fun ScreenHeader(
 
 @Composable
 fun SectionTitle(text: String, modifier: Modifier = Modifier) {
-    if (LocalLook.current == AppLook.MIDNIGHT) {
+    if (LocalLook.current == AppLook.BENTO) {
+        Text(
+            text.uppercase(),
+            modifier = modifier.padding(start = 22.dp, end = 20.dp, top = 20.dp, bottom = 8.dp),
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 1.4.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    } else if (LocalLook.current == AppLook.MIDNIGHT) {
         val scheme = MaterialTheme.colorScheme
         Row(
             modifier.padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 6.dp),
@@ -134,9 +174,21 @@ fun MvCard(
 ) {
     val dark = LocalIsDark.current
     val midnight = LocalLook.current == AppLook.MIDNIGHT
-    val shape = RoundedCornerShape(if (midnight) 28.dp else 24.dp)
     val scheme = MaterialTheme.colorScheme
     val press = if (onClick != null) Modifier.bounceClick(onClick) else Modifier
+    if (LocalLook.current == AppLook.BENTO) {
+        val bentoShape = RoundedCornerShape(22.dp)
+        Box(
+            modifier
+                .then(press)
+                .fillMaxWidth()
+                .background(scheme.surfaceContainerHigh, bentoShape)
+                .border(1.dp, hairline(dark), bentoShape)
+                .clip(bentoShape),
+        ) { content() }
+        return
+    }
+    val shape = RoundedCornerShape(if (midnight) 28.dp else 24.dp)
     val sheen = if (midnight) {
         Brush.linearGradient(listOf(Color.White.copy(alpha = if (dark) 0.10f else 0.5f), Color.Transparent, Color.Transparent))
     } else {
@@ -163,6 +215,11 @@ fun MvCard(
 /** Highlight card tinted with the accent colour, used for the main summary on the Today screen. */
 @Composable
 fun GradientCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    if (LocalLook.current == AppLook.BENTO) {
+        // Bento hero card: the same calm slate surface as every other card, just bigger.
+        MvCard(modifier, content = content)
+        return
+    }
     val midnight = LocalLook.current == AppLook.MIDNIGHT
     val shape = RoundedCornerShape(if (midnight) 34.dp else 30.dp)
     val scheme = MaterialTheme.colorScheme
@@ -419,23 +476,26 @@ fun StatTile(
     progress: Float? = null,
     onClick: (() -> Unit)? = null,
 ) {
+    val bento = LocalLook.current == AppLook.BENTO
+    // Bento keeps tiles neutral so the one indigo accent stays meaningful.
+    val tone = if (bento) MaterialTheme.colorScheme.onSurface else color
     MvCard(modifier, onClick) {
-        Column(Modifier.padding(16.dp)) {
+        Column(Modifier.padding(if (bento) 18.dp else 16.dp)) {
             Box(
                 Modifier
                     .size(38.dp)
                     .clip(CircleShape)
-                    .background(color.copy(alpha = 0.18f)),
+                    .background(tone.copy(alpha = if (bento) 0.08f else 0.18f)),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(21.dp))
+                Icon(icon, contentDescription = null, tint = tone, modifier = Modifier.size(21.dp))
             }
             Spacer(Modifier.height(12.dp))
             Text(
                 value,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
-                fontFamily = NumberFont,
+                fontFamily = statFont(),
                 fontSize = 24.sp,
                 maxLines = 1,
             )
@@ -447,7 +507,7 @@ fun StatTile(
             )
             if (progress != null) {
                 Spacer(Modifier.height(10.dp))
-                MiniBar(progress, color, height = 5.dp)
+                MiniBar(progress, tone, height = 5.dp)
             }
         }
     }

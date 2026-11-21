@@ -22,6 +22,14 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -136,6 +144,109 @@ private fun NavItem(tab: NavTab, selected: Boolean, onClick: () -> Unit, modifie
             color = color,
             maxLines = 1,
             modifier = Modifier.padding(top = 3.dp),
+        )
+    }
+}
+
+
+/** Height of the Bento dock plus its raised centre button and the gap under it. */
+val BENTO_DOCK_SPACE = 100.dp
+
+/**
+ * Bento look: a floating glass pill with four icons (no labels, a small glowing dot under the active
+ * one) and a raised round "+" button in the middle. [selected] may be -1 when none of the four is open.
+ */
+@Composable
+fun BentoDock(
+    tabs: List<NavTab>,
+    selected: Int,
+    onSelect: (Int) -> Unit,
+    onAdd: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val haptic = rememberHaptic(strong = true)
+    val tickHaptic = rememberHaptic()
+    val scheme = MaterialTheme.colorScheme
+    val half = tabs.size / 2
+    Box(modifier.widthIn(max = 380.dp).fillMaxWidth().height(NAV_BAR_HEIGHT + 12.dp)) {
+        GlassSurface(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(NAV_BAR_HEIGHT - 4.dp),
+            shape = RoundedCornerShape(999.dp),
+        ) {
+            Row(
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                tabs.forEachIndexed { i, tab ->
+                    if (i == half) Spacer(Modifier.width(64.dp))
+                    DockItem(
+                        tab,
+                        i == selected,
+                        {
+                            if (i != selected) tickHaptic()
+                            onSelect(i)
+                        },
+                        Modifier.weight(1f),
+                    )
+                }
+            }
+        }
+        Box(
+            Modifier
+                .align(Alignment.TopCenter)
+                .size(56.dp)
+                .shadow(14.dp, CircleShape, clip = false, ambientColor = scheme.primary, spotColor = scheme.primary)
+                .background(scheme.primary, CircleShape)
+                .border(3.dp, scheme.background, CircleShape)
+                .clip(CircleShape)
+                .bounceClick {
+                    haptic()
+                    onAdd()
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(Icons.Rounded.Add, contentDescription = "Quick add", tint = Color.White, modifier = Modifier.size(28.dp))
+        }
+    }
+}
+
+@Composable
+private fun DockItem(tab: NavTab, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
+    val scheme = MaterialTheme.colorScheme
+    val color by animateColorAsState(
+        if (selected) scheme.primary else scheme.onSurfaceVariant,
+        tween(220),
+        label = "dockColor",
+    )
+    val dot by animateFloatAsState(
+        if (selected) 1f else 0f,
+        spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+        label = "dockDot",
+    )
+    Column(
+        modifier
+            .fillMaxHeight()
+            .bounceClick(onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Icon(tab.icon, contentDescription = tab.label, tint = color, modifier = Modifier.size(25.dp))
+        Spacer(Modifier.height(5.dp))
+        Box(
+            Modifier
+                .size(5.dp)
+                .graphicsLayer {
+                    scaleX = dot
+                    scaleY = dot
+                    alpha = dot
+                }
+                .shadow(6.dp, CircleShape, clip = false, ambientColor = scheme.primary, spotColor = scheme.primary)
+                .background(scheme.primary, CircleShape),
         )
     }
 }
