@@ -106,13 +106,17 @@ fun Modifier.liquidGlass(
     val blurMod = if (backdrop != null) {
         Modifier.drawWithContent {
             backdrop.version // read, so we redraw when the content behind us changes
-            layer.renderEffect = BlurEffect(blurPx, blurPx, TileMode.Clamp)
-            layer.record {
-                translate(backdrop.origin.x - origin.x, backdrop.origin.y - origin.y) {
-                    drawLayer(backdrop.layer)
+            // If a device cannot do this, fall back to plain see-through glass instead of crashing.
+            try {
+                layer.renderEffect = BlurEffect(blurPx, blurPx, TileMode.Clamp)
+                layer.record {
+                    translate(backdrop.origin.x - origin.x, backdrop.origin.y - origin.y) {
+                        drawLayer(backdrop.layer)
+                    }
                 }
+                drawLayer(layer)
+            } catch (_: Throwable) {
             }
-            drawLayer(layer)
             drawContent()
         }
     } else {
