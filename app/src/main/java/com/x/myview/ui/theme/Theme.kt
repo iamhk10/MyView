@@ -67,6 +67,9 @@ val WaterBlue = Color(0xFF4DB8FF)
 val FireOrange = Color(0xFFFF9A3D)
 val StepsTeal = Color(0xFF3DD6C6)
 
+/** The one accent of the Bento look: Electric Indigo, used for the main action and active states only. */
+val ElectricIndigo = Color(0xFF6366F1)
+
 val LocalIsDark = staticCompositionLocalOf { true }
 
 /** Which overall look is active (cards, background and titles change with it). */
@@ -81,6 +84,10 @@ val ScriptFont: FontFamily = FontFamily(Typeface.create("cursive", Typeface.BOLD
 val QuoteFont: FontFamily = FontFamily(Typeface.create("serif", Typeface.ITALIC))
 val NumberFont: FontFamily = FontFamily(Typeface.create("sans-serif-condensed", Typeface.BOLD))
 val BlackFont: FontFamily = FontFamily(Typeface.create("sans-serif-black", Typeface.NORMAL))
+
+/** Big numbers use the condensed font, except in the Bento look which keeps one clean sans-serif. */
+@Composable
+fun statFont(): FontFamily? = if (LocalLook.current == AppLook.BENTO) null else NumberFont
 
 /** Whether taps give a small vibration (a setting). */
 val LocalHapticsOn = staticCompositionLocalOf { true }
@@ -109,10 +116,11 @@ fun displayFamilyFor(option: DisplayFont, text: FontFamily): FontFamily = when (
  * Material typography with the chosen fonts and size scale. Big headings and the larger titles use the
  * display font, everything else the body font.
  */
-private fun buildTypography(text: FontFamily, display: FontFamily, scale: Float): Typography {
+private fun buildTypography(text: FontFamily, display: FontFamily, scale: Float, tabular: Boolean = false): Typography {
     val base = Typography()
     fun TextStyle.styled(bold: Boolean = false, family: FontFamily = text): TextStyle = copy(
         fontFamily = family,
+        fontFeatureSettings = if (tabular) "tnum" else fontFeatureSettings,
         fontSize = fontSize * scale,
         lineHeight = lineHeight * scale,
         fontWeight = if (bold) FontWeight.Bold else fontWeight,
@@ -149,6 +157,68 @@ private fun tuneAccent(seed: Color, dark: Boolean): Color {
     if (hsl[1] > 0.12f) hsl[1] = hsl[1].coerceIn(0.35f, 0.95f)
     hsl[2] = if (dark) hsl[2].coerceIn(0.62f, 0.78f) else hsl[2].coerceIn(0.32f, 0.48f)
     return Color(ColorUtils.HSLToColor(hsl))
+}
+
+/** Bento look: charcoal background, slate cards, white text, a single Electric Indigo accent. */
+private fun buildBentoScheme(dark: Boolean, amoled: Boolean): ColorScheme {
+    val accent = ElectricIndigo
+    return if (dark) {
+        val bg = if (amoled) Color.Black else Color(0xFF0D0F12)
+        val card = Color(0xFF16191F)
+        val text = Color(0xFFF8FAFC)
+        val muted = Color(0xFF94A3B8)
+        darkColorScheme(
+            primary = accent,
+            onPrimary = Color.White,
+            primaryContainer = lerp(card, accent, 0.30f),
+            onPrimaryContainer = Color(0xFFE0E7FF),
+            secondary = Color(0xFFA5B4FC),
+            onSecondary = Color(0xFF111827),
+            tertiary = Color(0xFFA5B4FC),
+            background = bg,
+            onBackground = text,
+            surface = bg,
+            onSurface = text,
+            surfaceVariant = Color(0xFF1D2128),
+            onSurfaceVariant = muted,
+            surfaceTint = accent,
+            outline = Color(0xFF64748B),
+            outlineVariant = Color(0xFF262B33),
+            surfaceContainerLowest = Color(0xFF0A0C0F),
+            surfaceContainerLow = Color(0xFF12151A),
+            surfaceContainer = Color(0xFF14171C),
+            surfaceContainerHigh = card,
+            surfaceContainerHighest = Color(0xFF1D2128),
+            error = Color(0xFFFCA5A5),
+        )
+    } else {
+        val bg = Color(0xFFF3F4F8)
+        val text = Color(0xFF0F172A)
+        lightColorScheme(
+            primary = accent,
+            onPrimary = Color.White,
+            primaryContainer = Color(0xFFE0E7FF),
+            onPrimaryContainer = Color(0xFF312E81),
+            secondary = Color(0xFF4F46E5),
+            onSecondary = Color.White,
+            tertiary = Color(0xFF4F46E5),
+            background = bg,
+            onBackground = text,
+            surface = bg,
+            onSurface = text,
+            surfaceVariant = Color(0xFFE8EAF0),
+            onSurfaceVariant = Color(0xFF64748B),
+            surfaceTint = accent,
+            outline = Color(0xFF94A3B8),
+            outlineVariant = Color(0xFFE2E5EC),
+            surfaceContainerLowest = Color.White,
+            surfaceContainerLow = Color(0xFFFAFAFC),
+            surfaceContainer = Color(0xFFF8F9FB),
+            surfaceContainerHigh = Color.White,
+            surfaceContainerHighest = Color(0xFFEEF0F5),
+            error = Color(0xFFB3261E),
+        )
+    }
 }
 
 private fun buildScheme(seed: Color, dark: Boolean, amoled: Boolean, midnight: Boolean): ColorScheme {
@@ -229,7 +299,8 @@ fun MyViewTheme(settings: AppSettings, content: @Composable () -> Unit) {
         ThemeMode.DARK, ThemeMode.AMOLED -> true
     }
     val amoled = settings.themeMode == ThemeMode.AMOLED
-    val useWallpaper = settings.dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val bento = settings.look == AppLook.BENTO
+    val useWallpaper = settings.dynamicColor && !bento && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
     val target = ACCENTS[settings.accentIndex.coerceIn(0, ACCENTS.lastIndex)].color
     val seed by animateColorAsState(target, tween(400), label = "accent")
@@ -238,7 +309,9 @@ fun MyViewTheme(settings: AppSettings, content: @Composable () -> Unit) {
         val base = if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         if (amoled) base.toAmoled() else base
     } else {
-        remember(seed, dark, amoled, settings.look) { buildScheme(seed, dark, amoled, settings.look == AppLook.MIDNIGHT) }
+        remember(seed, dark, amoled, settings.look) {
+            if (bento) buildBentoScheme(dark, amoled) else buildScheme(seed, dark, amoled, settings.look == AppLook.MIDNIGHT)
+        }
     }
 
     val view = LocalView.current
@@ -254,9 +327,11 @@ fun MyViewTheme(settings: AppSettings, content: @Composable () -> Unit) {
         }
     }
 
-    val typography = remember(settings.fontOption, settings.displayFont, settings.textSize) {
+    val typography = remember(settings.fontOption, settings.displayFont, settings.textSize, bento) {
         val text = fontFamilyFor(settings.fontOption)
-        buildTypography(text, displayFamilyFor(settings.displayFont, text), settings.textSize.scale)
+        // Bento keeps one clean sans-serif everywhere, with tabular (equal width) digits.
+        val display = if (bento) text else displayFamilyFor(settings.displayFont, text)
+        buildTypography(text, display, settings.textSize.scale, tabular = bento)
     }
 
     CompositionLocalProvider(
