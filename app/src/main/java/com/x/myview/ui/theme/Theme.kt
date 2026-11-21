@@ -87,7 +87,7 @@ val BlackFont: FontFamily = FontFamily(Typeface.create("sans-serif-black", Typef
 
 /** Big numbers use the condensed font, except in the Bento look which keeps one clean sans-serif. */
 @Composable
-fun statFont(): FontFamily? = if (LocalLook.current == AppLook.BENTO) null else NumberFont
+fun statFont(): FontFamily? = if (LocalLook.current == AppLook.BENTO || LocalLook.current == AppLook.HEALTH) null else NumberFont
 
 /** Whether taps give a small vibration (a setting). */
 val LocalHapticsOn = staticCompositionLocalOf { true }
@@ -158,6 +158,90 @@ private fun tuneAccent(seed: Color, dark: Boolean): Color {
     hsl[2] = if (dark) hsl[2].coerceIn(0.62f, 0.78f) else hsl[2].coerceIn(0.32f, 0.48f)
     return Color(ColorUtils.HSLToColor(hsl))
 }
+
+/** Google Health style: soft blue Material tones, tinted hero area, white cards on a pale sheet. */
+private fun buildHealthScheme(dark: Boolean, amoled: Boolean): ColorScheme {
+    return if (dark) {
+        val bg = if (amoled) Color.Black else Color(0xFF101418)
+        darkColorScheme(
+            primary = Color(0xFFA8C7FA),
+            onPrimary = Color(0xFF062E6F),
+            primaryContainer = Color(0xFF2D4F7C),
+            onPrimaryContainer = Color(0xFFD3E3FD),
+            secondary = Color(0xFF4FD8C9),
+            onSecondary = Color(0xFF003732),
+            secondaryContainer = Color(0xFF0B3B35),
+            onSecondaryContainer = Color(0xFFC7EFE8),
+            tertiary = Color(0xFFD0BCFF),
+            onTertiary = Color(0xFF381E72),
+            tertiaryContainer = Color(0xFF352B52),
+            onTertiaryContainer = Color(0xFFE8DEF8),
+            background = bg,
+            onBackground = Color(0xFFE3E3E3),
+            surface = bg,
+            onSurface = Color(0xFFE3E3E3),
+            surfaceVariant = Color(0xFF2B3036),
+            onSurfaceVariant = Color(0xFFC4C7C5),
+            surfaceTint = Color(0xFFA8C7FA),
+            outline = Color(0xFF8E918F),
+            outlineVariant = Color(0xFF2B3036),
+            surfaceContainerLowest = Color(0xFF0B0E12),
+            surfaceContainerLow = Color(0xFF181C21),
+            surfaceContainer = Color(0xFF1B2026),
+            surfaceContainerHigh = Color(0xFF1B1F24),
+            surfaceContainerHighest = Color(0xFF262B31),
+            error = Color(0xFFF2B8B5),
+        )
+    } else {
+        lightColorScheme(
+            primary = Color(0xFF0B57D0),
+            onPrimary = Color.White,
+            primaryContainer = Color(0xFFD3E3FD),
+            onPrimaryContainer = Color(0xFF001D35),
+            secondary = Color(0xFF00897B),
+            onSecondary = Color.White,
+            secondaryContainer = Color(0xFFC7EFE8),
+            onSecondaryContainer = Color(0xFF00201C),
+            tertiary = Color(0xFF6750A4),
+            onTertiary = Color.White,
+            tertiaryContainer = Color(0xFFE8DEF8),
+            onTertiaryContainer = Color(0xFF1D192B),
+            background = Color(0xFFF8FAFD),
+            onBackground = Color(0xFF1F1F1F),
+            surface = Color(0xFFF8FAFD),
+            onSurface = Color(0xFF1F1F1F),
+            surfaceVariant = Color(0xFFE1E3E1),
+            onSurfaceVariant = Color(0xFF444746),
+            surfaceTint = Color(0xFF0B57D0),
+            outline = Color(0xFF747775),
+            outlineVariant = Color(0xFFE1E3E1),
+            surfaceContainerLowest = Color.White,
+            surfaceContainerLow = Color(0xFFF2F6FC),
+            surfaceContainer = Color(0xFFF0F4F9),
+            surfaceContainerHigh = Color(0xFFE9EEF6),
+            surfaceContainerHighest = Color(0xFFDDE3EA),
+            error = Color(0xFFB3261E),
+        )
+    }
+}
+
+/** A soft pastel colour pair used for one area of the app (steps, workout, habits, water ...). */
+class Tone(val container: Color, val accent: Color)
+
+/** Pastel tones of the Health look: "teal" (steps), "orange" (workout), "purple" (habits, sleep), "blue" (water). */
+@Composable
+fun healthTone(name: String): Tone {
+    val dark = LocalIsDark.current
+    return when (name) {
+        "teal" -> if (dark) Tone(Color(0xFF0B3B35), Color(0xFF4FD8C9)) else Tone(Color(0xFFC7EFE8), Color(0xFF00796B))
+        "orange" -> if (dark) Tone(Color(0xFF4A2A0F), Color(0xFFFFB77C)) else Tone(Color(0xFFFFE0C2), Color(0xFFB3541E))
+        "purple" -> if (dark) Tone(Color(0xFF352B52), Color(0xFFD0BCFF)) else Tone(Color(0xFFE8DEF8), Color(0xFF6750A4))
+        else -> if (dark) Tone(Color(0xFF173A62), Color(0xFFA8C7FA)) else Tone(Color(0xFFD3E3FD), Color(0xFF0B57D0))
+    }
+}
+
+/** The tinted area at the top of a Health tab. */
+fun healthHeroColor(dark: Boolean): Color = if (dark) Color(0xFF0F2744) else Color(0xFFD3E3FD)
 
 /** Bento look: charcoal background, slate cards, white text, a single Electric Indigo accent. */
 private fun buildBentoScheme(dark: Boolean, amoled: Boolean): ColorScheme {
@@ -299,8 +383,9 @@ fun MyViewTheme(settings: AppSettings, content: @Composable () -> Unit) {
         ThemeMode.DARK, ThemeMode.AMOLED -> true
     }
     val amoled = settings.themeMode == ThemeMode.AMOLED
+    val health = settings.look == AppLook.HEALTH
     val bento = settings.look == AppLook.BENTO
-    val useWallpaper = settings.dynamicColor && !bento && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+    val useWallpaper = settings.dynamicColor && !bento && !health && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
     val target = ACCENTS[settings.accentIndex.coerceIn(0, ACCENTS.lastIndex)].color
     val seed by animateColorAsState(target, tween(400), label = "accent")
@@ -310,7 +395,9 @@ fun MyViewTheme(settings: AppSettings, content: @Composable () -> Unit) {
         if (amoled) base.toAmoled() else base
     } else {
         remember(seed, dark, amoled, settings.look) {
-            if (bento) buildBentoScheme(dark, amoled) else buildScheme(seed, dark, amoled, settings.look == AppLook.MIDNIGHT)
+            if (health) buildHealthScheme(dark, amoled)
+            else if (bento) buildBentoScheme(dark, amoled)
+            else buildScheme(seed, dark, amoled, settings.look == AppLook.MIDNIGHT)
         }
     }
 
@@ -327,11 +414,11 @@ fun MyViewTheme(settings: AppSettings, content: @Composable () -> Unit) {
         }
     }
 
-    val typography = remember(settings.fontOption, settings.displayFont, settings.textSize, bento) {
+    val typography = remember(settings.fontOption, settings.displayFont, settings.textSize, bento, health) {
         val text = fontFamilyFor(settings.fontOption)
         // Bento keeps one clean sans-serif everywhere, with tabular (equal width) digits.
-        val display = if (bento) text else displayFamilyFor(settings.displayFont, text)
-        buildTypography(text, display, settings.textSize.scale, tabular = bento)
+        val display = if (bento || health) text else displayFamilyFor(settings.displayFont, text)
+        buildTypography(text, display, settings.textSize.scale, tabular = bento || health)
     }
 
     CompositionLocalProvider(
