@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.shape.CircleShape
@@ -248,5 +249,123 @@ private fun DockItem(tab: NavTab, selected: Boolean, onClick: () -> Unit, modifi
                 .shadow(6.dp, CircleShape, clip = false, ambientColor = scheme.primary, spotColor = scheme.primary)
                 .background(scheme.primary, CircleShape),
         )
+    }
+}
+
+
+/** Height of the Health bottom bar (without the system navigation inset). */
+val HEALTH_BAR_HEIGHT = 72.dp
+
+/** Space the content leaves at the bottom of Health tabs: the bar plus the Quick add button above it. */
+val HEALTH_BOTTOM_SPACE = 148.dp
+
+/**
+ * Health look: a short, full-width bottom bar (like Google Health). The selected tab gets a pill behind
+ * its icon that grows in with a spring, and its label turns bold. [selected] is the index in [tabs].
+ */
+@Composable
+fun HealthNavBar(
+    tabs: List<NavTab>,
+    selected: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val haptic = rememberHaptic()
+    Box(
+        modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceContainer),
+    ) {
+        Row(
+            Modifier
+                .navigationBarsPadding()
+                .fillMaxWidth()
+                .height(HEALTH_BAR_HEIGHT)
+                .padding(horizontal = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            tabs.forEachIndexed { i, tab ->
+                HealthNavItem(
+                    tab,
+                    i == selected,
+                    {
+                        if (i != selected) haptic()
+                        onSelect(i)
+                    },
+                    Modifier.weight(1f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HealthNavItem(tab: NavTab, selected: Boolean, onClick: () -> Unit, modifier: Modifier) {
+    val scheme = MaterialTheme.colorScheme
+    val pillWidth by animateDpAsState(
+        if (selected) 64.dp else 32.dp,
+        spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessMediumLow),
+        label = "healthPill",
+    )
+    val pillColor by animateColorAsState(
+        if (selected) scheme.primaryContainer else scheme.primaryContainer.copy(alpha = 0f),
+        tween(200),
+        label = "healthPillColor",
+    )
+    Column(
+        modifier
+            .fillMaxHeight()
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Box(
+            Modifier
+                .width(pillWidth)
+                .height(32.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(pillColor),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                tab.icon,
+                contentDescription = tab.label,
+                tint = if (selected) scheme.onPrimaryContainer else scheme.onSurfaceVariant,
+                modifier = Modifier.size(24.dp),
+            )
+        }
+        Text(
+            tab.label,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            color = if (selected) scheme.onSurface else scheme.onSurfaceVariant,
+            maxLines = 1,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+    }
+}
+
+/** Extended floating action button with a rounded-square shape (Material 3 Expressive style). */
+@Composable
+fun HealthFab(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val scheme = MaterialTheme.colorScheme
+    val haptic = rememberHaptic(strong = true)
+    val shape = RoundedCornerShape(20.dp)
+    Row(
+        modifier
+            .shadow(6.dp, shape, clip = false)
+            .background(scheme.primary, shape)
+            .clip(shape)
+            .bounceClick {
+                haptic()
+                onClick()
+            }
+            .height(56.dp)
+            .padding(horizontal = 20.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Icon(Icons.Rounded.Add, contentDescription = null, tint = scheme.onPrimary, modifier = Modifier.size(24.dp))
+        Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = scheme.onPrimary)
     }
 }

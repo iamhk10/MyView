@@ -75,7 +75,8 @@ fun ScreenHeader(
     titleSize: TextUnit = TextUnit.Unspecified,
     actions: @Composable () -> Unit = {},
 ) {
-    if (LocalLook.current == AppLook.BENTO) {
+    val cleanLook = LocalLook.current == AppLook.BENTO || LocalLook.current == AppLook.HEALTH
+    if (cleanLook) {
         // Borderless header: small muted line above a bold title, the action button on the right.
         Row(
             modifier
@@ -94,7 +95,7 @@ fun ScreenHeader(
                 Text(
                     title,
                     style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = if (LocalLook.current == AppLook.HEALTH) FontWeight.Medium else FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                 )
             }
@@ -124,7 +125,15 @@ fun ScreenHeader(
 
 @Composable
 fun SectionTitle(text: String, modifier: Modifier = Modifier) {
-    if (LocalLook.current == AppLook.BENTO) {
+    if (LocalLook.current == AppLook.HEALTH) {
+        Text(
+            text,
+            modifier = modifier.padding(start = 22.dp, end = 20.dp, top = 18.dp, bottom = 6.dp),
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    } else if (LocalLook.current == AppLook.BENTO) {
         Text(
             text.uppercase(),
             modifier = modifier.padding(start = 22.dp, end = 20.dp, top = 20.dp, bottom = 8.dp),
@@ -176,6 +185,19 @@ fun MvCard(
     val midnight = LocalLook.current == AppLook.MIDNIGHT
     val scheme = MaterialTheme.colorScheme
     val press = if (onClick != null) Modifier.bounceClick(onClick) else Modifier
+    if (LocalLook.current == AppLook.HEALTH) {
+        // Health: white card with a thin soft border and very round corners.
+        val healthShape = RoundedCornerShape(28.dp)
+        Box(
+            modifier
+                .then(press)
+                .fillMaxWidth()
+                .background(if (dark) Color(0xFF1B1F24) else Color.White, healthShape)
+                .border(1.dp, scheme.outlineVariant, healthShape)
+                .clip(healthShape),
+        ) { content() }
+        return
+    }
     if (LocalLook.current == AppLook.BENTO) {
         val bentoShape = RoundedCornerShape(22.dp)
         Box(
@@ -215,6 +237,16 @@ fun MvCard(
 /** Highlight card tinted with the accent colour, used for the main summary on the Today screen. */
 @Composable
 fun GradientCard(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    if (LocalLook.current == AppLook.HEALTH) {
+        val tonalShape = RoundedCornerShape(28.dp)
+        Box(
+            modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.primaryContainer, tonalShape)
+                .clip(tonalShape),
+        ) { content() }
+        return
+    }
     if (LocalLook.current == AppLook.BENTO) {
         // Bento hero card: the same calm slate surface as every other card, just bigger.
         MvCard(modifier, content = content)
@@ -465,6 +497,24 @@ fun CheckCircle(
     }
 }
 
+/** Pastel card of the Health look: [container] fills it, no border. Squeezes a little when pressed. */
+@Composable
+fun TonalCard(
+    container: Color,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
+    content: @Composable () -> Unit,
+) {
+    val shape = RoundedCornerShape(28.dp)
+    val press = if (onClick != null) Modifier.bounceClick(onClick) else Modifier
+    Box(
+        modifier
+            .then(press)
+            .background(container, shape)
+            .clip(shape),
+    ) { content() }
+}
+
 /** Compact dashboard tile: icon, big value, label and an optional progress bar. */
 @Composable
 fun StatTile(
@@ -477,6 +527,36 @@ fun StatTile(
     onClick: (() -> Unit)? = null,
 ) {
     val bento = LocalLook.current == AppLook.BENTO
+    if (LocalLook.current == AppLook.HEALTH) {
+        // Pastel tile: the colour tints the whole card, text stays dark.
+        val dark = LocalIsDark.current
+        val surface = MaterialTheme.colorScheme.background
+        val fill = androidx.compose.ui.graphics.lerp(surface, color, if (dark) 0.26f else 0.22f)
+        val accent = if (dark) color else androidx.compose.ui.graphics.lerp(color, Color.Black, 0.35f)
+        TonalCard(fill, modifier, onClick) {
+            Column(Modifier.padding(18.dp)) {
+                Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(24.dp))
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    value,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                )
+                Text(
+                    label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+                if (progress != null) {
+                    Spacer(Modifier.height(10.dp))
+                    MiniBar(progress, accent, height = 5.dp)
+                }
+            }
+        }
+        return
+    }
     // Bento keeps tiles neutral so the one indigo accent stays meaningful.
     val tone = if (bento) MaterialTheme.colorScheme.onSurface else color
     MvCard(modifier, onClick) {

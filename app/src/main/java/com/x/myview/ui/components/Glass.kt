@@ -44,7 +44,10 @@ fun GlassSurface(
     val dark = LocalIsDark.current
     val scheme = MaterialTheme.colorScheme
     val base = scheme.surfaceContainerHigh
-    val look = if (LocalLook.current == AppLook.BENTO) {
+    val look = if (LocalLook.current == AppLook.HEALTH) {
+        // Health: a plain tonal fill, no border and no shadow.
+        Modifier.background(scheme.primaryContainer, shape)
+    } else if (LocalLook.current == AppLook.BENTO) {
         // Bento: translucent slate with a brighter hairline and a soft drop shadow (the floating dock).
         val bentoBase = if (dark) Color(0xFF16191F).copy(alpha = 0.75f) else Color.White.copy(alpha = 0.80f)
         Modifier
@@ -94,8 +97,8 @@ fun CircleIconButton(
     description: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    size: Dp = if (LocalLook.current == AppLook.BENTO) 40.dp else 44.dp,
-    tint: Color = MaterialTheme.colorScheme.onSurface,
+    size: Dp = if (LocalLook.current == AppLook.BENTO || LocalLook.current == AppLook.HEALTH) 40.dp else 44.dp,
+    tint: Color = if (LocalLook.current == AppLook.HEALTH) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
 ) {
     GlassSurface(modifier.size(size), CircleShape, flat = LocalLook.current == AppLook.BENTO) {
         Box(
@@ -122,7 +125,7 @@ fun Modifier.appBackground(): Modifier {
     val midnight = LocalLook.current == AppLook.MIDNIGHT
     val strength = if (dark) (if (midnight) 0.22f else 0.30f) else 0.22f
     val strength2 = if (dark) (if (midnight) 0.26f else 0.16f) else 0.12f
-    if (LocalLook.current == AppLook.BENTO) return this.drawBehind { drawRect(bg) }
+    if (LocalLook.current == AppLook.BENTO || LocalLook.current == AppLook.HEALTH) return this.drawBehind { drawRect(bg) }
     return this.drawBehind {
         drawRect(bg)
         drawRect(
