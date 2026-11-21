@@ -54,6 +54,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.ui.draw.drawBehind
 import com.x.myview.data.AppLook
 import com.x.myview.ui.theme.DeepViolet
+import com.x.myview.ui.theme.LocalGlass
 import com.x.myview.ui.theme.LocalIsDark
 import com.x.myview.ui.theme.LocalLook
 import com.x.myview.ui.theme.NumberFont
@@ -188,12 +189,21 @@ fun MvCard(
     if (LocalLook.current == AppLook.HEALTH) {
         // Health: white card with a thin soft border and very round corners.
         val healthShape = RoundedCornerShape(28.dp)
+        val glassOn = LocalGlass.current
         Box(
             modifier
                 .then(press)
                 .fillMaxWidth()
-                .background(if (dark) Color(0xFF1B1F24) else Color.White, healthShape)
-                .border(1.dp, scheme.outlineVariant, healthShape)
+                .then(
+                    if (glassOn) {
+                        // Liquid glass card: see-through white, light sheen and a bright rim.
+                        Modifier.liquidGlass(healthShape, Color.White.copy(alpha = if (dark) 0.06f else 0.55f), blurred = false)
+                    } else {
+                        Modifier
+                            .background(if (dark) Color(0xFF1B1F24) else Color.White, healthShape)
+                            .border(1.dp, scheme.outlineVariant, healthShape)
+                    },
+                )
                 .clip(healthShape),
         ) { content() }
         return
@@ -510,7 +520,13 @@ fun TonalCard(
     Box(
         modifier
             .then(press)
-            .background(container, shape)
+            .then(
+                if (LocalGlass.current) {
+                    Modifier.liquidGlass(shape, container.copy(alpha = 0.72f), blurred = false)
+                } else {
+                    Modifier.background(container, shape)
+                },
+            )
             .clip(shape),
     ) { content() }
 }

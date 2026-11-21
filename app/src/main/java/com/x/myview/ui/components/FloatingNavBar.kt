@@ -45,6 +45,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.x.myview.ui.theme.LocalIsDark
+import com.x.myview.ui.theme.LocalGlass
 
 val NAV_BAR_HEIGHT = 68.dp
 
@@ -271,16 +273,28 @@ fun HealthNavBar(
     modifier: Modifier = Modifier,
 ) {
     val haptic = rememberHaptic()
-    Box(
+    val glass = LocalGlass.current
+    val dark = LocalIsDark.current
+    val scheme = MaterialTheme.colorScheme
+    val barShape = RoundedCornerShape(34.dp)
+    // Liquid glass: a floating capsule that blurs what scrolls behind it. Otherwise a plain full-width bar.
+    val barModifier = if (glass) {
+        modifier
+            .navigationBarsPadding()
+            .padding(start = 16.dp, end = 16.dp, bottom = 10.dp)
+            .fillMaxWidth()
+            .shadow(18.dp, barShape, clip = false, ambientColor = Color.Black.copy(alpha = 0.5f), spotColor = Color.Black.copy(alpha = 0.5f))
+            .liquidGlass(barShape, scheme.surfaceContainer.copy(alpha = if (dark) 0.45f else 0.50f), blur = 24.dp)
+    } else {
         modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceContainer),
-    ) {
+            .background(scheme.surfaceContainer)
+    }
+    Box(barModifier) {
         Row(
-            Modifier
-                .navigationBarsPadding()
+            (if (glass) Modifier else Modifier.navigationBarsPadding())
                 .fillMaxWidth()
-                .height(HEALTH_BAR_HEIGHT)
+                .height(if (glass) HEALTH_BAR_HEIGHT - 4.dp else HEALTH_BAR_HEIGHT)
                 .padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -351,11 +365,18 @@ fun HealthFab(label: String, onClick: () -> Unit, modifier: Modifier = Modifier)
     val scheme = MaterialTheme.colorScheme
     val haptic = rememberHaptic(strong = true)
     val shape = RoundedCornerShape(20.dp)
-    Row(
+    val body = if (LocalGlass.current) {
+        modifier
+            .shadow(14.dp, shape, clip = false, ambientColor = scheme.primary, spotColor = scheme.primary)
+            .liquidGlass(shape, scheme.primary.copy(alpha = 0.78f), blur = 16.dp)
+    } else {
         modifier
             .shadow(6.dp, shape, clip = false)
             .background(scheme.primary, shape)
             .clip(shape)
+    }
+    Row(
+        body
             .bounceClick {
                 haptic()
                 onClick()
