@@ -225,7 +225,6 @@ private fun TabsHost(
     val glass = health && LocalGlass.current
     val layer = rememberGraphicsLayer()
     val backdrop = remember(layer) { Backdrop(layer) }
-    CompositionLocalProvider(LocalBackdrop provides (if (glass) backdrop else null)) {
     Box(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize().then(if (glass) Modifier.backdropSource(backdrop).appBackground() else Modifier)) {
         CompositionLocalProvider(LocalBottomInset provides inset) {
@@ -260,19 +259,23 @@ private fun TabsHost(
         }
         }
         if (health) {
-            HealthFab(
-                "Quick add",
-                { showAdd = true },
-                Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 16.dp, bottom = 72.dp + 16.dp + navBottom),
-            )
-            HealthNavBar(
-                tabs = HEALTH_TABS,
-                selected = healthPos(tab),
-                onSelect = { onTab(HEALTH_TO_TAB[it]) },
-                modifier = Modifier.align(Alignment.BottomCenter),
-            )
+            // Only these two sit outside the recorded content, so only they may read the backdrop.
+            // (Glass inside the content would draw the layer into itself and crash.)
+            CompositionLocalProvider(LocalBackdrop provides (if (glass) backdrop else null)) {
+                HealthFab(
+                    "Quick add",
+                    { showAdd = true },
+                    Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 16.dp, bottom = 72.dp + 16.dp + navBottom),
+                )
+                HealthNavBar(
+                    tabs = HEALTH_TABS,
+                    selected = healthPos(tab),
+                    onSelect = { onTab(HEALTH_TO_TAB[it]) },
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
+            }
         } else if (bento) {
             BentoDock(
                 tabs = DOCK_TABS,
@@ -293,7 +296,6 @@ private fun TabsHost(
                     .padding(start = 16.dp, end = 16.dp, bottom = 12.dp + navBottom),
             )
         }
-    }
     }
     if (showAdd) {
         QuickAddSheet(vm, onDismiss = { showAdd = false }, onOpen = onOpen, onGoTab = onTab)
