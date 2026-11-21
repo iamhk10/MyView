@@ -23,6 +23,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Bedtime
+import androidx.compose.material.icons.rounded.DirectionsRun
+import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -36,6 +39,9 @@ import androidx.compose.ui.unit.sp
 import com.x.myview.data.AppLook
 import com.x.myview.ui.components.BENTO_DOCK_SPACE
 import com.x.myview.ui.components.BentoDock
+import com.x.myview.ui.components.HEALTH_BOTTOM_SPACE
+import com.x.myview.ui.components.HealthFab
+import com.x.myview.ui.components.HealthNavBar
 import com.x.myview.ui.components.bounceClick
 import com.x.myview.ui.components.hairline
 import com.x.myview.ui.components.iconFor
@@ -112,6 +118,25 @@ private val DOCK_TABS = listOf(
 )
 private val DOCK_TO_TAB = intArrayOf(0, 1, 2, 4)
 
+/**
+ * Health look: four tabs like Google Health. Fitness opens the workout tab (2), Sleep the sleep tab (5),
+ * Health the More tab (4). Habits (1) and Water (3) are pages inside Today, so Today stays selected.
+ */
+private val HEALTH_TABS = listOf(
+    NavTab("Today", Icons.Rounded.Home),
+    NavTab("Fitness", Icons.Rounded.DirectionsRun),
+    NavTab("Sleep", Icons.Rounded.Bedtime),
+    NavTab("Health", Icons.Rounded.Favorite),
+)
+private val HEALTH_TO_TAB = intArrayOf(0, 2, 5, 4)
+
+private fun healthPos(tab: Int): Int = when (tab) {
+    2 -> 1
+    5 -> 2
+    4 -> 3
+    else -> 0
+}
+
 @Composable
 fun MyViewRoot(vm: MainViewModel) {
     val settings by vm.settings.collectAsState()
@@ -136,8 +161,9 @@ private fun RootContent(vm: MainViewModel) {
 
     val settings by vm.settings.collectAsState()
     val bento = settings.look == AppLook.BENTO
+    val health = settings.look == AppLook.HEALTH
     val navBottom = with(LocalDensity.current) { WindowInsets.navigationBars.getBottom(this).toDp() }
-    val inset = (if (bento) BENTO_DOCK_SPACE else NAV_BAR_HEIGHT + 30.dp) + navBottom
+    val inset = (if (health) HEALTH_BOTTOM_SPACE else if (bento) BENTO_DOCK_SPACE else NAV_BAR_HEIGHT + 30.dp) + navBottom
 
     Box(
         Modifier
@@ -168,7 +194,7 @@ private fun RootContent(vm: MainViewModel) {
             label = "overlay",
         ) { current ->
             if (current == null) {
-                TabsHost(vm, tab, { tab = it }, { overlay = it }, inset, navBottom, bento)
+                TabsHost(vm, tab, { tab = it }, { overlay = it }, inset, navBottom, bento, health)
             } else {
                 OverlayHost(vm, current, open = { overlay = it }, close = { overlay = null })
             }
@@ -187,6 +213,7 @@ private fun TabsHost(
     inset: Dp,
     navBottom: Dp,
     bento: Boolean,
+    health: Boolean,
 ) {
     var showAdd by remember { mutableStateOf(false) }
     Box(Modifier.fillMaxSize()) {
@@ -195,7 +222,9 @@ private fun TabsHost(
                 targetState = tab,
                 modifier = Modifier.fillMaxSize(),
                 transitionSpec = {
-                    val dir = if (targetState > initialState) 1 else -1
+                    val dir = if (health) {
+                        if (healthPos(targetState) >= healthPos(initialState)) 1 else -1
+                    } else if (targetState > initialState) 1 else -1
                     (slideInHorizontally(tween(320)) { dir * it / 6 } + fadeIn(tween(320))) togetherWith
                         (slideOutHorizontally(tween(240)) { -dir * it / 6 } + fadeOut(tween(160)))
                 },
@@ -204,19 +233,35 @@ private fun TabsHost(
                 Box(
                     Modifier
                         .fillMaxSize()
-                        .statusBarsPadding(),
+                        // The Health Today tab draws its tinted top area under the status bar itself.
+                        .then(if (health && t == 0) Modifier else Modifier.statusBarsPadding()),
                 ) {
                     when (t) {
                         0 -> TodayScreen(vm, onOpen = onOpen, onGoTab = onTab)
                         1 -> HabitsScreen(vm, onOpen = onOpen)
                         2 -> WorkoutScreen(vm, onOpen = onOpen)
                         3 -> WaterScreen(vm, onOpen = onOpen)
+                        5 -> SleepScreen(vm, onBack = { onTab(0) }, asTab = true)
                         else -> MoreScreen(vm, onOpen = onOpen)
                     }
                 }
             }
         }
-        if (bento) {
+        if (health) {
+            HealthFab(
+                "Quick add",
+                { showAdd = true },
+                Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 16.dp, bottom = 72.dp + 16.dp + navBottom),
+            )
+            HealthNavBar(
+                tabs = HEALTH_TABS,
+                selected = healthPos(tab),
+                onSelect = { onTab(HEALTH_TO_TAB[it]) },
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        } else if (bento) {
             BentoDock(
                 tabs = DOCK_TABS,
                 selected = DOCK_TO_TAB.indexOf(tab),
