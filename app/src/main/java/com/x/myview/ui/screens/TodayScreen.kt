@@ -1,6 +1,20 @@
 package com.x.myview.ui.screens
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.LightMode
+import androidx.compose.ui.graphics.Color
+import com.x.myview.data.AppLook
+import com.x.myview.data.ThemeMode
+import com.x.myview.ui.components.CheckCircle
+import com.x.myview.ui.components.bounceClick
+import com.x.myview.ui.components.hairline
+import com.x.myview.ui.theme.LocalIsDark
+import com.x.myview.ui.theme.LocalLook
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -61,6 +75,7 @@ import com.x.myview.ui.components.iconFor
 import com.x.myview.ui.components.rememberAnimatedInt
 import com.x.myview.ui.components.staggerIn
 import com.x.myview.ui.theme.NumberFont
+import com.x.myview.ui.theme.statFont
 import com.x.myview.ui.theme.QuoteFont
 import com.x.myview.ui.theme.ScriptFont
 import com.x.myview.ui.theme.StepsTeal
@@ -134,11 +149,41 @@ fun TodayScreen(vm: MainViewModel, onOpen: (String) -> Unit, onGoTab: (Int) -> U
     val awards = rememberAwards(vm)
     var quoteShift by remember { mutableIntStateOf(0) }
 
+    val bento = LocalLook.current == AppLook.BENTO
+    val isDark = LocalIsDark.current
+    val moodBlock: LazyListScope.() -> Unit = {
+        item { SectionTitle("How are you feeling?") }
+        item {
+            MvCard(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+                    MoodPicker(moodToday?.mood ?: 0, { m -> vm.saveMood(today, m, moodToday?.note ?: "") })
+                    TextButton(onClick = { onOpen("mood") }, modifier = Modifier.align(Alignment.End)) {
+                        Text(if (moodToday == null) "Open mood diary" else "Add a note")
+                    }
+                }
+            }
+        }
+    }
+
     LazyColumn(
         Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = bottomInset()),
     ) {
         item {
+            if (bento) {
+                ScreenHeader(greeting(), niceDate(today)) {
+                    // One 40dp round button: sun / moon switches between light and dark.
+                    CircleIconButton(
+                        if (isDark) Icons.Rounded.LightMode else Icons.Rounded.DarkMode,
+                        if (isDark) "Switch to light mode" else "Switch to dark mode",
+                        {
+                            vm.updateSettings {
+                                it.copy(themeMode = if (isDark) ThemeMode.LIGHT else ThemeMode.DARK)
+                            }
+                        },
+                    )
+                }
+            } else {
             ScreenHeader(greeting(), niceDate(today), titleFont = ScriptFont, titleSize = 38.sp) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Box(
@@ -150,13 +195,14 @@ fun TodayScreen(vm: MainViewModel, onOpen: (String) -> Unit, onGoTab: (Int) -> U
                     ) {
                         Text(
                             "Lv ${awards.level}",
-                            fontFamily = NumberFont,
+                            fontFamily = statFont(),
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.primary,
                         )
                     }
                     CircleIconButton(Icons.Rounded.Settings, "Settings", { onOpen("settings") })
                 }
+            }
             }
         }
 
@@ -174,7 +220,7 @@ fun TodayScreen(vm: MainViewModel, onOpen: (String) -> Unit, onGoTab: (Int) -> U
                 ) {
                     ProgressRing(score, size = 118.dp, stroke = 13.dp) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("$scorePercent%", fontSize = 32.sp, fontFamily = NumberFont, fontWeight = FontWeight.Bold)
+                            Text("$scorePercent%", fontSize = 32.sp, fontFamily = statFont(), fontWeight = FontWeight.Bold)
                             Text("score", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
@@ -199,6 +245,247 @@ fun TodayScreen(vm: MainViewModel, onOpen: (String) -> Unit, onGoTab: (Int) -> U
             }
         }
 
+        if (bento) {
+        item {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min)
+                    .padding(horizontal = 16.dp, vertical = 7.dp)
+                    .staggerIn(1),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                StatTile(
+                    Icons.Rounded.TaskAlt, MaterialTheme.colorScheme.primary,
+                    "$doneCount/${planned.size}", "Habits", Modifier.weight(1f).fillMaxHeight(),
+                    progress = habitProgress, onClick = { onGoTab(1) },
+                )
+                // Water split card: tap opens the Water tab, the round + adds one glass.
+                MvCard(Modifier.weight(1f).fillMaxHeight(), onClick = { onGoTab(3) }) {
+                    Column(Modifier.padding(18.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(iconFor("water"), null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(21.dp))
+                            }
+                            Spacer(Modifier.weight(1f))
+                            Box(
+                                Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primary)
+                                    .bounceClick { vm.addWater(settings.glassMl) },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(Icons.Rounded.Add, "Add water", tint = Color.White, modifier = Modifier.size(19.dp))
+                            }
+                        }
+                        Spacer(Modifier.height(12.dp))
+                        Text(
+                            formatMl(rememberAnimatedInt(waterMl)),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 24.sp,
+                            maxLines = 1,
+                        )
+                        Text(
+                            "Water",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        MiniBar(waterProgress, MaterialTheme.colorScheme.onSurface, height = 5.dp)
+                    }
+                }
+            }
+        }
+        item {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Min)
+                    .padding(horizontal = 16.dp, vertical = 7.dp)
+                    .staggerIn(2),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                StatTile(
+                    iconFor("fitness"), itemColor(6),
+                    if (workedOut.isEmpty()) "-" else "${workedOut.size} done", "Workout", Modifier.weight(1f).fillMaxHeight(),
+                    progress = workout, onClick = { onGoTab(2) },
+                )
+                if (vm.stepsSupported) {
+                    StatTile(
+                        iconFor("walk"), StepsTeal,
+                        formatSteps(rememberAnimatedInt(stepsToday)), "Steps", Modifier.weight(1f).fillMaxHeight(),
+                        progress = stepsProgress, onClick = { onOpen("steps") },
+                    )
+                } else {
+                    StatTile(
+                        iconFor("sleep"), itemColor(0),
+                        if (sleepToday == null) "-" else formatSleep(sleepToday.minutes), "Sleep", Modifier.weight(1f).fillMaxHeight(),
+                        progress = (sleepToday?.minutes ?: 0).toFloat() / settings.sleepGoalMin.coerceAtLeast(1),
+                        onClick = { onOpen("sleep") },
+                    )
+                }
+            }
+        }
+        item {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                    .staggerIn(1),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                QuickTile(iconFor("timer"), itemColor(6), "Focus", Modifier.weight(1f)) { onOpen("focus") }
+                QuickTile(iconFor("spa"), StepsTeal, "Breathe", Modifier.weight(1f)) { onOpen("breathe") }
+                QuickTile(iconFor("star"), itemColor(5), "Awards", Modifier.weight(1f)) { onOpen("awards") }
+            }
+        }
+        if (vm.stepsSupported && !stepsGranted) {
+            item {
+                MvCard(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            "Allow step counting to see your steps here.",
+                            Modifier.weight(1f),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        FilledTonalButton(onClick = askSteps) { Text("Allow") }
+                    }
+                }
+            }
+        }
+
+        item { SectionTitle("Today\u2019s activity") }
+        item {
+            MvCard(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                Column(Modifier.padding(vertical = 6.dp)) {
+                    val shownHabits = planned.sortedBy { today in (done[it.id] ?: emptySet()) }.take(5)
+                    if (shownHabits.isEmpty() && workedOut.isEmpty()) {
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(start = 18.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                if (habits.isEmpty()) "Nothing here yet. Add your first habit." else "Nothing planned for today.",
+                                Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            if (habits.isEmpty()) TextButton(onClick = { onOpen("habitedit:0") }) { Text("Add habit") }
+                        }
+                    }
+                    shownHabits.forEachIndexed { idx, h ->
+                        val days = done[h.id] ?: emptySet()
+                        val isDone = today in days
+                        val streak = currentStreak(h.days, days, today)
+                        if (idx > 0) ActivityDivider()
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { onOpen("habit:${h.id}") }
+                                .padding(horizontal = 18.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            CheckCircle(isDone, MaterialTheme.colorScheme.primary, { vm.toggleHabit(h.id, today, !isDone) }, size = 30.dp)
+                            Spacer(Modifier.width(14.dp))
+                            Text(
+                                h.name,
+                                Modifier.weight(1f),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                color = if (isDone) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                            )
+                            if (streak > 0) {
+                                Text(
+                                    "\uD83D\uDD25 $streak",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                    workedOut.take(3).forEachIndexed { idx, e ->
+                        val total = exerciseTotal(exLogs, e.id, today)
+                        if (idx > 0 || shownHabits.isNotEmpty()) ActivityDivider()
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { onOpen("ex:${e.id}") }
+                                .padding(horizontal = 18.dp, vertical = 11.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Box(
+                                Modifier
+                                    .size(30.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(iconFor(e.icon), null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(17.dp))
+                            }
+                            Spacer(Modifier.width(14.dp))
+                            Text(
+                                e.name,
+                                Modifier.weight(1f),
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                            )
+                            Text(
+                                if (e.kind == KIND_TIME) formatDuration(total) else "$total",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        }
+                    }
+                    if (planned.size > 5) {
+                        TextButton(onClick = { onGoTab(1) }, modifier = Modifier.padding(start = 8.dp)) {
+                            Text("View all ${planned.size} habits")
+                        }
+                    }
+                }
+            }
+        }
+            moodBlock()
+        item {
+            MvCard(
+                Modifier
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                    .staggerIn(2),
+                onClick = { quoteShift += 1 },
+            ) {
+                Crossfade(quoteFor(today, quoteShift), label = "quote") { q ->
+                    Text(
+                        "\u201C$q\u201D",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 18.dp),
+                        fontFamily = QuoteFont,
+                        fontSize = 17.sp,
+                        textAlign = TextAlign.Center,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f),
+                    )
+                }
+            }
+        }
+        } else {
         item {
             Row(
                 Modifier
@@ -304,18 +591,7 @@ fun TodayScreen(vm: MainViewModel, onOpen: (String) -> Unit, onGoTab: (Int) -> U
             }
         }
 
-        item { SectionTitle("How are you feeling?") }
-        item {
-            MvCard(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
-                Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
-                    MoodPicker(moodToday?.mood ?: 0, { m -> vm.saveMood(today, m, moodToday?.note ?: "") })
-                    TextButton(onClick = { onOpen("mood") }, modifier = Modifier.align(Alignment.End)) {
-                        Text(if (moodToday == null) "Open mood diary" else "Add a note")
-                    }
-                }
-            }
-        }
-
+            moodBlock()
         item { SectionTitle("Habits") }
         if (planned.isEmpty()) {
             item {
@@ -390,6 +666,7 @@ fun TodayScreen(vm: MainViewModel, onOpen: (String) -> Unit, onGoTab: (Int) -> U
                 }
             }
         }
+        }
     }
 }
 
@@ -430,4 +707,16 @@ private fun QuickTile(
             Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
         }
     }
+}
+
+/** Thin hairline between rows inside a Bento list card. */
+@Composable
+private fun ActivityDivider() {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 18.dp)
+            .height(1.dp)
+            .background(hairline(LocalIsDark.current)),
+    )
 }

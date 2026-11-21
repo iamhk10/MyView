@@ -41,6 +41,7 @@ import com.x.myview.ui.components.WeekBars
 import com.x.myview.ui.components.staggerIn
 import com.x.myview.ui.theme.FireOrange
 import com.x.myview.ui.theme.NumberFont
+import com.x.myview.ui.theme.statFont
 import kotlinx.coroutines.delay
 
 /** A countdown for deep work. It keeps running if you leave the screen, and the minutes are saved per day. */
@@ -102,7 +103,7 @@ fun FocusScreen(vm: MainViewModel, onBack: () -> Unit) {
                 ) {
                     ProgressRing(progress, size = 240.dp, stroke = 16.dp, color = FireOrange) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(clock, fontSize = 48.sp, fontFamily = NumberFont, fontWeight = FontWeight.Bold)
+                            Text(clock, fontSize = 48.sp, fontFamily = statFont(), fontWeight = FontWeight.Bold)
                             Text(
                                 if (running) "stay with it" else if (finished) "session done" else "ready",
                                 style = MaterialTheme.typography.labelMedium,

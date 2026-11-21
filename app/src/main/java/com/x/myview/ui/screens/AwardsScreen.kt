@@ -43,6 +43,7 @@ import com.x.myview.ui.components.SectionTitle
 import com.x.myview.ui.components.iconFor
 import com.x.myview.ui.components.staggerIn
 import com.x.myview.ui.theme.NumberFont
+import com.x.myview.ui.theme.statFont
 import com.x.myview.ui.theme.itemColor
 
 /** Level, experience points and badges worked out from everything logged so far. */
@@ -92,12 +93,12 @@ fun AwardsScreen(vm: MainViewModel, onBack: () -> Unit) {
                         ProgressRing(awards.levelProgress, size = 110.dp, stroke = 12.dp) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Text("LEVEL", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text("${awards.level}", fontSize = 36.sp, fontFamily = NumberFont, fontWeight = FontWeight.Bold)
+                                Text("${awards.level}", fontSize = 36.sp, fontFamily = statFont(), fontWeight = FontWeight.Bold)
                             }
                         }
                         Spacer(Modifier.width(18.dp))
                         Column(Modifier.weight(1f)) {
-                            Text("${awards.xp} XP", style = MaterialTheme.typography.titleLarge, fontFamily = NumberFont, fontWeight = FontWeight.Bold)
+                            Text("${awards.xp} XP", style = MaterialTheme.typography.titleLarge, fontFamily = statFont(), fontWeight = FontWeight.Bold)
                             Spacer(Modifier.height(4.dp))
                             Text(
                                 "${awards.xpLevelSize - awards.xpInLevel} XP to level ${awards.level + 1}",
