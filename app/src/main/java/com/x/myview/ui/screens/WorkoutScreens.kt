@@ -65,6 +65,7 @@ import com.x.myview.ui.theme.LocalLook
 import com.x.myview.data.AppLook
 import com.x.myview.ui.components.CircleIconButton
 import com.x.myview.ui.components.EXERCISE_ICON_KEYS
+import com.x.myview.ui.components.ExerciseGuideCard
 import com.x.myview.ui.components.MiniBar
 import com.x.myview.ui.components.MvCard
 import com.x.myview.ui.components.ProgressRing
@@ -172,6 +173,8 @@ fun ExerciseDetailScreen(vm: MainViewModel, id: Long, onBack: () -> Unit, onEdit
                 .navigationBarsPadding()
                 .padding(bottom = 24.dp),
         ) {
+            ExerciseGuideCard(e.name, color, Modifier.padding(horizontal = 16.dp, vertical = 6.dp))
+
             MvCard(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
                 Column(
                     Modifier
