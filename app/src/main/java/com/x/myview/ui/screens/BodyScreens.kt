@@ -44,6 +44,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.x.myview.ui.MainViewModel
+import com.x.myview.ui.components.ScreenHeader
 import com.x.myview.ui.components.GradientCard
 import com.x.myview.ui.components.LineChart
 import com.x.myview.ui.components.MvCard
@@ -54,6 +55,7 @@ import com.x.myview.ui.components.iconFor
 import com.x.myview.ui.components.rememberAnimatedInt
 import com.x.myview.ui.components.rememberHaptic
 import com.x.myview.ui.components.staggerIn
+import com.x.myview.ui.theme.bottomInset
 import com.x.myview.ui.theme.itemColor
 import com.x.myview.util.formatSleep
 import com.x.myview.util.formatWeight
@@ -89,7 +91,7 @@ private fun StarRow(quality: Int, onChange: (Int) -> Unit) {
 // ---------------------------------------------------------------- Sleep
 
 @Composable
-fun SleepScreen(vm: MainViewModel, onBack: () -> Unit) {
+fun SleepScreen(vm: MainViewModel, onBack: () -> Unit, asTab: Boolean = false) {
     val today by vm.today.collectAsState()
     val settings by vm.settings.collectAsState()
     val logs by vm.sleepLogs.collectAsState()
@@ -108,13 +110,14 @@ fun SleepScreen(vm: MainViewModel, onBack: () -> Unit) {
     val color = itemColor(0)
 
     Column(Modifier.fillMaxSize()) {
-        BackHeader("Sleep", onBack)
+        if (asTab) ScreenHeader("Sleep", "How well did you rest?") else BackHeader("Sleep", onBack)
         Column(
             Modifier
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
                 .navigationBarsPadding()
-                .padding(bottom = 24.dp),
+                // As a tab the bottom bar and the Quick add button sit over the page.
+                .padding(bottom = if (asTab) bottomInset() else 24.dp),
         ) {
             Row(
                 Modifier

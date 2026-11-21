@@ -61,6 +61,8 @@ import com.x.myview.data.db.KIND_TIME
 import com.x.myview.domain.exerciseByDay
 import com.x.myview.domain.exerciseTotal
 import com.x.myview.ui.MainViewModel
+import com.x.myview.ui.theme.LocalLook
+import com.x.myview.data.AppLook
 import com.x.myview.ui.components.CircleIconButton
 import com.x.myview.ui.components.EXERCISE_ICON_KEYS
 import com.x.myview.ui.components.MiniBar
@@ -94,7 +96,7 @@ fun WorkoutScreen(vm: MainViewModel, onOpen: (String) -> Unit) {
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = bottomInset())) {
         item {
-            ScreenHeader("Workout", "Tap an exercise to count") {
+            ScreenHeader(if (LocalLook.current == AppLook.HEALTH) "Fitness" else "Workout", "Tap an exercise to count") {
                 CircleIconButton(Icons.Rounded.Add, "Add exercise", { onOpen("exedit:0") })
             }
         }

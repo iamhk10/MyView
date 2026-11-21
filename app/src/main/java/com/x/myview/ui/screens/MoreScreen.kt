@@ -45,6 +45,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.x.myview.ui.MainViewModel
+import com.x.myview.ui.theme.LocalLook
+import com.x.myview.data.AppLook
 import com.x.myview.ui.components.MvCard
 import com.x.myview.ui.components.ScreenHeader
 import com.x.myview.ui.components.iconFor
@@ -72,7 +74,7 @@ fun MoreScreen(vm: MainViewModel, onOpen: (String) -> Unit) {
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = bottomInset())) {
         item {
-            ScreenHeader("More", "Body, mind and app settings")
+            ScreenHeader(if (LocalLook.current == AppLook.HEALTH) "Health" else "More", "Body, mind and app settings")
         }
         item {
             MoreRow(

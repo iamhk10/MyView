@@ -1,6 +1,17 @@
 package com.x.myview.ui.screens
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.text.font.FontStyle
+import com.x.myview.data.db.KIND_REPS
+import com.x.myview.ui.components.TonalCard
+import com.x.myview.ui.theme.healthHeroColor
+import com.x.myview.ui.theme.healthTone
+import com.x.myview.ui.theme.onColorFor
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.lazy.LazyListScope
@@ -150,6 +161,7 @@ fun TodayScreen(vm: MainViewModel, onOpen: (String) -> Unit, onGoTab: (Int) -> U
     var quoteShift by remember { mutableIntStateOf(0) }
 
     val bento = LocalLook.current == AppLook.BENTO
+    val health = LocalLook.current == AppLook.HEALTH
     val isDark = LocalIsDark.current
     val moodBlock: LazyListScope.() -> Unit = {
         item { SectionTitle("How are you feeling?") }
@@ -163,6 +175,316 @@ fun TodayScreen(vm: MainViewModel, onOpen: (String) -> Unit, onGoTab: (Int) -> U
                 }
             }
         }
+    }
+
+    if (health) {
+        val scheme = MaterialTheme.colorScheme
+        val heroColor = healthHeroColor(isDark)
+        val sheetColor = scheme.background
+        val teal = healthTone("teal")
+        val orange = healthTone("orange")
+        val purple = healthTone("purple")
+        val blue = healthTone("blue")
+        val weekDays = remember(today) { (today - 6..today).toList() }
+        val weekSteps = weekDays.map { steps[it] ?: 0 }
+        val stepsLeft = (settings.stepGoal - stepsToday).coerceAtLeast(0)
+        val habitsLeft = planned.size - doneCount
+        val repsToday = remember(exercises, exLogs, today) {
+            exercises.filter { it.kind == KIND_REPS }.sumOf { exerciseTotal(exLogs, it.id, today) }
+        }
+        val coachText = when {
+            vm.stepsSupported && stepsGranted && stepsLeft > 0 ->
+                "You\u2019re ${formatSteps(stepsLeft)} steps from your goal. A short walk gets you there."
+            habitsLeft > 0 -> "$habitsLeft habit${if (habitsLeft == 1) "" else "s"} left today. Small steps add up."
+            else -> scoreMessage(score, goals.size)
+        }
+        val padH = Modifier.padding(horizontal = 14.dp, vertical = 5.dp)
+
+        LazyColumn(
+            Modifier
+                .fillMaxSize()
+                .background(sheetColor),
+            contentPadding = PaddingValues(bottom = bottomInset()),
+        ) {
+            // Tinted top area: title and three progress rings.
+            item {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(heroColor)
+                        .statusBarsPadding()
+                        .padding(bottom = 24.dp),
+                ) {
+                    ScreenHeader(greeting(), niceDate(today)) {
+                        CircleIconButton(Icons.Rounded.Settings, "Settings", { onOpen("settings") })
+                    }
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                    ) {
+                        if (vm.stepsSupported) {
+                            HeroRing(stepsProgress, formatSteps(rememberAnimatedInt(stepsToday)), "Steps", teal.accent) { onOpen("steps") }
+                        } else {
+                            HeroRing(workout, "$repsToday", "Workout", orange.accent) { onGoTab(2) }
+                        }
+                        HeroRing(habitProgress, "$doneCount/${planned.size}", "Habits", purple.accent) { onGoTab(1) }
+                        HeroRing(waterProgress, formatMl(rememberAnimatedInt(waterMl)), "Water", blue.accent) { onGoTab(3) }
+                    }
+                }
+            }
+            // The white sheet starts here, with rounded top corners sliding over the tinted area.
+            item {
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(heroColor),
+                ) {
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .background(sheetColor, RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
+                            .padding(start = 14.dp, end = 14.dp, top = 18.dp, bottom = 5.dp),
+                    ) {
+                        Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .staggerIn(0)
+                                .clip(RoundedCornerShape(28.dp))
+                                .background(Brush.horizontalGradient(listOf(purple.container, blue.container))),
+                        ) {
+                            Column(Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Rounded.AutoAwesome, null, tint = purple.accent, modifier = Modifier.size(18.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Coach", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = purple.accent)
+                                    Spacer(Modifier.weight(1f))
+                                    Text("Score $scorePercent%", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
+                                }
+                                Spacer(Modifier.height(8.dp))
+                                Text(coachText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
+                            }
+                        }
+                    }
+                }
+            }
+            item {
+                Row(padH.staggerIn(1), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    ToolChip(iconFor("timer"), "Focus", Modifier.weight(1f)) { onOpen("focus") }
+                    ToolChip(iconFor("spa"), "Breathe", Modifier.weight(1f)) { onOpen("breathe") }
+                    ToolChip(iconFor("star"), "Awards", Modifier.weight(1f)) { onOpen("awards") }
+                }
+            }
+            if (vm.stepsSupported && !stepsGranted) {
+                item {
+                    TonalCard(scheme.tertiaryContainer, padH) {
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(start = 18.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                "Allow step counting to see your steps here.",
+                                Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = scheme.onTertiaryContainer,
+                            )
+                            FilledTonalButton(onClick = askSteps) { Text("Allow") }
+                        }
+                    }
+                }
+            }
+
+            item { SectionTitle("Fitness") }
+            item {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(IntrinsicSize.Min)
+                        .padding(horizontal = 14.dp, vertical = 5.dp)
+                        .staggerIn(2),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    if (vm.stepsSupported) {
+                        TonalCard(teal.container, Modifier.weight(1f).fillMaxHeight(), onClick = { onOpen("steps") }) {
+                            Column(Modifier.padding(16.dp)) {
+                                Text("Steps", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium, color = teal.accent)
+                                Text(
+                                    formatSteps(rememberAnimatedInt(stepsToday)),
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                )
+                                Spacer(Modifier.height(10.dp))
+                                val maxV = maxOf(settings.stepGoal, weekSteps.maxOrNull() ?: 0, 1)
+                                Row(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .height(40.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.Bottom,
+                                ) {
+                                    weekSteps.forEachIndexed { i, v ->
+                                        Box(
+                                            Modifier
+                                                .weight(1f)
+                                                .fillMaxHeight((v.toFloat() / maxV).coerceIn(0.08f, 1f))
+                                                .clip(RoundedCornerShape(6.dp))
+                                                .background(teal.accent.copy(alpha = if (i == weekSteps.lastIndex) 1f else 0.35f)),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        TonalCard(purple.container, Modifier.weight(1f).fillMaxHeight(), onClick = { onOpen("sleep") }) {
+                            Column(Modifier.padding(16.dp)) {
+                                Text("Sleep", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium, color = purple.accent)
+                                Text(
+                                    if (sleepToday == null) "-" else formatSleep(sleepToday.minutes),
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                )
+                            }
+                        }
+                    }
+                    TonalCard(orange.container, Modifier.weight(1f).fillMaxHeight(), onClick = { onGoTab(2) }) {
+                        Column(Modifier.fillMaxHeight().padding(16.dp)) {
+                            Text("Workout", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium, color = orange.accent)
+                            Text(
+                                if (repsToday > 0) "$repsToday reps" else if (workedOut.isEmpty()) "Not yet" else "${workedOut.size} done",
+                                style = MaterialTheme.typography.headlineMedium,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                            )
+                            Text(
+                                workedOut.firstOrNull()?.name ?: "Tap to start",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = scheme.onSurfaceVariant,
+                                maxLines = 1,
+                            )
+                            Spacer(Modifier.weight(1f))
+                            Spacer(Modifier.height(10.dp))
+                            MiniBar(workout, orange.accent, height = 6.dp)
+                        }
+                    }
+                }
+            }
+
+            item { SectionTitle("Water") }
+            item {
+                TonalCard(blue.container, padH.staggerIn(3), onClick = { onGoTab(3) }) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(start = 20.dp, end = 14.dp, top = 16.dp, bottom = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                "${formatMl(waterMl)} of ${formatMl(settings.waterGoalMl)}",
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Medium,
+                            )
+                            Spacer(Modifier.height(10.dp))
+                            MiniBar(waterProgress, blue.accent, height = 7.dp)
+                        }
+                        Spacer(Modifier.width(14.dp))
+                        Row(
+                            Modifier
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(blue.accent)
+                                .bounceClick { vm.addWater(settings.glassMl) }
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(Icons.Rounded.Add, null, tint = onColorFor(blue.accent), modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("${settings.glassMl} ml", color = onColorFor(blue.accent), fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+
+            item { SectionTitle("Habits") }
+            item {
+                MvCard(padH.staggerIn(4)) {
+                    Column(Modifier.padding(vertical = 6.dp)) {
+                        val shown = planned.sortedBy { today in (done[it.id] ?: emptySet()) }.take(5)
+                        if (shown.isEmpty()) {
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(start = 20.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    if (habits.isEmpty()) "No habits yet. Add your first one." else "Nothing planned for today.",
+                                    Modifier.weight(1f),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = scheme.onSurfaceVariant,
+                                )
+                                if (habits.isEmpty()) TextButton(onClick = { onOpen("habitedit:0") }) { Text("Add habit") }
+                            }
+                        }
+                        shown.forEach { h ->
+                            val days = done[h.id] ?: emptySet()
+                            val isDone = today in days
+                            val streak = currentStreak(h.days, days, today)
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onOpen("habit:${h.id}") }
+                                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                HealthCheck(isDone) { vm.toggleHabit(h.id, today, !isDone) }
+                                Spacer(Modifier.width(16.dp))
+                                Text(
+                                    h.name,
+                                    Modifier.weight(1f),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    color = if (isDone) scheme.onSurfaceVariant else scheme.onSurface,
+                                )
+                                if (streak > 0) {
+                                    Text("\uD83D\uDD25 $streak", style = MaterialTheme.typography.labelLarge, color = scheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                        if (planned.isNotEmpty()) {
+                            TextButton(onClick = { onGoTab(1) }, modifier = Modifier.padding(start = 12.dp)) {
+                                Text(if (planned.size > 5) "View all ${planned.size} habits" else "Manage habits")
+                            }
+                        }
+                    }
+                }
+            }
+
+            moodBlock()
+
+            item {
+                MvCard(padH.staggerIn(5), onClick = { quoteShift += 1 }) {
+                    Crossfade(quoteFor(today, quoteShift), label = "quote") { q ->
+                        Text(
+                            "\u201C$q\u201D",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 22.dp, vertical = 20.dp),
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontStyle = FontStyle.Italic,
+                            textAlign = TextAlign.Center,
+                            color = scheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+        return
     }
 
     LazyColumn(
@@ -719,4 +1041,69 @@ private fun ActivityDivider() {
             .height(1.dp)
             .background(hairline(LocalIsDark.current)),
     )
+}
+
+/** One of the three rings in the tinted top area of the Health Today tab. */
+@Composable
+private fun HeroRing(
+    progress: Float,
+    value: String,
+    label: String,
+    color: androidx.compose.ui.graphics.Color,
+    onClick: () -> Unit,
+) {
+    Column(
+        Modifier.bounceClick(onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        ProgressRing(progress, size = 100.dp, stroke = 11.dp, color = color, track = color.copy(alpha = 0.2f)) {
+            Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium, maxLines = 1)
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium)
+    }
+}
+
+/** Small rounded suggestion chip (Focus, Breathe, Awards). */
+@Composable
+private fun ToolChip(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val shape = RoundedCornerShape(16.dp)
+    Row(
+        modifier
+            .clip(shape)
+            .background(scheme.surfaceContainer, shape)
+            .border(1.dp, scheme.outlineVariant, shape)
+            .bounceClick(onClick)
+            .padding(horizontal = 10.dp, vertical = 11.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(icon, null, tint = scheme.primary, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(6.dp))
+        Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Medium, maxLines = 1)
+    }
+}
+
+/** Rounded-square tick box (Material style) for habits. */
+@Composable
+private fun HealthCheck(checked: Boolean, onToggle: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    val shape = RoundedCornerShape(8.dp)
+    Box(
+        Modifier
+            .size(26.dp)
+            .clip(shape)
+            .background(if (checked) scheme.primary else androidx.compose.ui.graphics.Color.Transparent, shape)
+            .border(2.dp, if (checked) scheme.primary else scheme.outline, shape)
+            .bounceClick(onToggle),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (checked) Icon(Icons.Rounded.Check, "Done", tint = scheme.onPrimary, modifier = Modifier.size(18.dp))
+    }
 }
