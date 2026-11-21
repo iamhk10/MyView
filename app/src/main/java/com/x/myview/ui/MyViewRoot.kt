@@ -37,6 +37,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import com.x.myview.data.AppLook
+import androidx.compose.ui.graphics.rememberGraphicsLayer
+import com.x.myview.ui.components.Backdrop
+import com.x.myview.ui.components.LocalBackdrop
+import com.x.myview.ui.components.backdropSource
+import com.x.myview.ui.theme.LocalGlass
 import com.x.myview.ui.components.BENTO_DOCK_SPACE
 import com.x.myview.ui.components.BentoDock
 import com.x.myview.ui.components.HEALTH_BOTTOM_SPACE
@@ -216,7 +221,13 @@ private fun TabsHost(
     health: Boolean,
 ) {
     var showAdd by remember { mutableStateOf(false) }
+    // Liquid glass (Health look): the tabs are recorded as a backdrop that the bar and button blur.
+    val glass = health && LocalGlass.current
+    val layer = rememberGraphicsLayer()
+    val backdrop = remember(layer) { Backdrop(layer) }
+    CompositionLocalProvider(LocalBackdrop provides (if (glass) backdrop else null)) {
     Box(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxSize().then(if (glass) Modifier.backdropSource(backdrop).appBackground() else Modifier)) {
         CompositionLocalProvider(LocalBottomInset provides inset) {
             AnimatedContent(
                 targetState = tab,
@@ -246,6 +257,7 @@ private fun TabsHost(
                     }
                 }
             }
+        }
         }
         if (health) {
             HealthFab(
@@ -281,6 +293,7 @@ private fun TabsHost(
                     .padding(start = 16.dp, end = 16.dp, bottom = 12.dp + navBottom),
             )
         }
+    }
     }
     if (showAdd) {
         QuickAddSheet(vm, onDismiss = { showAdd = false }, onOpen = onOpen, onGoTab = onTab)
