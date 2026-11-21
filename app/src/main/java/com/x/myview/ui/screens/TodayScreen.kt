@@ -1,6 +1,14 @@
 package com.x.myview.ui.screens
 
 import androidx.compose.animation.Crossfade
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathFillType
+import com.x.myview.ui.components.liquidGlass
+import com.x.myview.ui.theme.LocalGlass
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.rounded.AutoAwesome
@@ -180,7 +188,9 @@ fun TodayScreen(vm: MainViewModel, onOpen: (String) -> Unit, onGoTab: (Int) -> U
     if (health) {
         val scheme = MaterialTheme.colorScheme
         val heroColor = healthHeroColor(isDark)
-        val sheetColor = scheme.background
+        val glassOn = LocalGlass.current
+        // With liquid glass the page background (colour blobs) shows through, so the sheet has no fill.
+        val sheetColor = if (glassOn) Color.Transparent else scheme.background
         val teal = healthTone("teal")
         val orange = healthTone("orange")
         val purple = healthTone("purple")
@@ -234,19 +244,31 @@ fun TodayScreen(vm: MainViewModel, onOpen: (String) -> Unit, onGoTab: (Int) -> U
                     }
                 }
             }
-            // The white sheet starts here, with rounded top corners sliding over the tinted area.
+            // The sheet starts here: the tinted area is cut with rounded corners, so it looks like the sheet slides over it.
             item {
-                Box(
+                Column(
                     Modifier
                         .fillMaxWidth()
-                        .background(heroColor),
+                        .drawBehind {
+                            val r = 32.dp.toPx()
+                            val area = Rect(0f, 0f, size.width, size.height)
+                            val path = Path().apply {
+                                fillType = PathFillType.EvenOdd
+                                addRect(area)
+                                addRoundRect(
+                                    RoundRect(
+                                        Rect(0f, 0f, size.width, size.height + r * 2f),
+                                        CornerRadius(r),
+                                        CornerRadius(r),
+                                        CornerRadius.Zero,
+                                        CornerRadius.Zero,
+                                    ),
+                                )
+                            }
+                            drawPath(path, heroColor)
+                        }
+                        .padding(start = 14.dp, end = 14.dp, top = 18.dp, bottom = 5.dp),
                 ) {
-                    Column(
-                        Modifier
-                            .fillMaxWidth()
-                            .background(sheetColor, RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp))
-                            .padding(start = 14.dp, end = 14.dp, top = 18.dp, bottom = 5.dp),
-                    ) {
                         Box(
                             Modifier
                                 .fillMaxWidth()
@@ -266,7 +288,6 @@ fun TodayScreen(vm: MainViewModel, onOpen: (String) -> Unit, onGoTab: (Int) -> U
                                 Text(coachText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
                             }
                         }
-                    }
                 }
             }
             item {
@@ -1077,8 +1098,15 @@ private fun ToolChip(
     Row(
         modifier
             .clip(shape)
-            .background(scheme.surfaceContainer, shape)
-            .border(1.dp, scheme.outlineVariant, shape)
+            .then(
+                if (LocalGlass.current) {
+                    Modifier.liquidGlass(shape, scheme.surfaceContainer.copy(alpha = 0.55f), blurred = false)
+                } else {
+                    Modifier
+                        .background(scheme.surfaceContainer, shape)
+                        .border(1.dp, scheme.outlineVariant, shape)
+                },
+            )
             .bounceClick(onClick)
             .padding(horizontal = 10.dp, vertical = 11.dp),
         horizontalArrangement = Arrangement.Center,
