@@ -147,6 +147,23 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 }
             }
 
+            SectionTitle("Widgets")
+            MvCard(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Text("Widget style", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    ChipFlow {
+                        ChoiceChip("Light", s.widgetStyle == 0, { vm.updateSettings { it.copy(widgetStyle = 0) } })
+                        ChoiceChip("Dark", s.widgetStyle == 1, { vm.updateSettings { it.copy(widgetStyle = 1) } })
+                        ChoiceChip("Accent colour", s.widgetStyle == 2, { vm.updateSettings { it.copy(widgetStyle = 2) } })
+                    }
+                    Text(
+                        "Applies to the Steps, Streak, Workout and Quote widgets.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
             SectionTitle("Feel")
             MvCard(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {

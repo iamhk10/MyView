@@ -112,6 +112,27 @@ fun WorkoutScreen(vm: MainViewModel, onOpen: (String) -> Unit) {
                 StatPill(formatDuration(totalSeconds), "Timed today", Modifier.weight(1f))
             }
         }
+        item {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                MvCard(Modifier.weight(1f), onClick = { onOpen("library") }) {
+                    Column(Modifier.fillMaxWidth().padding(14.dp)) {
+                        Text("Library", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text("19 animated exercises", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                MvCard(Modifier.weight(1f), onClick = { onOpen("plans") }) {
+                    Column(Modifier.fillMaxWidth().padding(14.dp)) {
+                        Text("Plans", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text("Guided workouts", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
         item { SectionTitle("Exercises") }
         itemsIndexed(exercises, key = { _, e -> e.id }) { i, e ->
             val total = exerciseTotal(logs, e.id, today)

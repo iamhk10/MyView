@@ -78,6 +78,15 @@ fun MoreScreen(vm: MainViewModel, onOpen: (String) -> Unit) {
         }
         item {
             MoreRow(
+                iconFor("fitness"), itemColor(6), "Exercise library",
+                "19 exercises with animations and tips", { onOpen("library") }, Modifier.staggerIn(0),
+            )
+        }
+        item {
+            MoreRow(iconFor("bolt"), itemColor(3), "Workout plans", "Guided routines with rest timer", { onOpen("plans") }, Modifier.staggerIn(1))
+        }
+        item {
+            MoreRow(
                 iconFor("star"), itemColor(5), "Level and awards",
                 "XP, levels and badges", { onOpen("awards") }, Modifier.staggerIn(0),
             )
