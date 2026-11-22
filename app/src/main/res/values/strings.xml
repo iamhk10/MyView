@@ -2,6 +2,9 @@
     <string name="app_name">MyView</string>
     <string name="widget_habits_desc">Today\'s habits. Tap a circle to tick it.</string>
     <string name="widget_water_desc">Water progress with a quick add button.</string>
+    <string name="widget_streak_desc">Your day streak and the last 7 days at a glance.</string>
+    <string name="widget_workout_desc">Reps done today with a progress ring.</string>
+    <string name="widget_quote_desc">A short motivation line for today.</string>
     <string name="widget_steps_desc">Only your step count, with a dial that shows goal progress.</string>
     <string name="widget_summary_desc">Steps, water, reps and habits at a glance.</string>
 </resources>
