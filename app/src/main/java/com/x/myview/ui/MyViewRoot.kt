@@ -94,8 +94,12 @@ import com.x.myview.ui.screens.HabitDetailScreen
 import com.x.myview.ui.screens.HabitEditScreen
 import com.x.myview.ui.screens.HabitsScreen
 import com.x.myview.ui.screens.HistoryScreen
+import com.x.myview.ui.screens.LibraryDetailScreen
+import com.x.myview.ui.screens.LibraryScreen
 import com.x.myview.ui.screens.MoodScreen
 import com.x.myview.ui.screens.MoreScreen
+import com.x.myview.ui.screens.PlanScreen
+import com.x.myview.ui.screens.PlansScreen
 import com.x.myview.ui.screens.SettingsScreen
 import com.x.myview.ui.screens.SleepScreen
 import com.x.myview.ui.screens.StepsScreen
@@ -150,7 +154,7 @@ fun MyViewRoot(vm: MainViewModel) {
 
 /**
  * Screens that sit on top of the tabs are named with a short key: "settings", "steps", "sleep", "weight",
- * "mood", "backup", "history:<metric>", "focus", "breathe", "awards", "habit:<id>", "habitedit:<id>" (0 = new), "ex:<id>", "exedit:<id>" (0 = new).
+ * "mood", "backup", "history:<metric>", "focus", "breathe", "awards", "habit:<id>", "habitedit:<id>" (0 = new), "ex:<id>", "exedit:<id>" (0 = new), "library", "lib:<key>", "plans", "plan:<n>".
  */
 @Composable
 private fun RootContent(vm: MainViewModel) {
@@ -376,6 +380,10 @@ private fun OverlayHost(vm: MainViewModel, key: String, open: (String) -> Unit, 
             "focus" -> FocusScreen(vm, onBack = close)
             "breathe" -> BreathScreen(vm, onBack = close)
             "awards" -> AwardsScreen(vm, onBack = close)
+            "library" -> LibraryScreen(vm, onBack = close, onOpen = open)
+            "lib" -> LibraryDetailScreen(vm, parts.getOrNull(1) ?: "", onBack = close, onOpen = open)
+            "plans" -> PlansScreen(vm, onBack = close, onOpen = open)
+            "plan" -> PlanScreen(vm, id.toInt(), onBack = close)
             "history" -> HistoryScreen(vm, start = parts.getOrNull(1) ?: "steps", onBack = close)
             "sleep" -> SleepScreen(vm, onBack = close)
             "weight" -> WeightScreen(vm, onBack = close)
