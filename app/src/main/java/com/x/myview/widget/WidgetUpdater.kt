@@ -11,6 +11,9 @@ import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Rect
+import android.text.Layout
+import android.text.StaticLayout
+import android.text.TextPaint
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.SweepGradient
@@ -23,6 +26,7 @@ import com.x.myview.data.db.HabitEntity
 import com.x.myview.data.db.KIND_REPS
 import com.x.myview.domain.currentStreak
 import com.x.myview.domain.exerciseTotal
+import com.x.myview.domain.quoteFor
 import com.x.myview.domain.scheduledHabits
 import com.x.myview.reminders.Reminders
 import com.x.myview.ui.theme.ACCENTS
@@ -55,6 +59,9 @@ class HabitsWidget : BaseWidget()
 class WaterWidget : BaseWidget()
 class SummaryWidget : BaseWidget()
 class StepsWidget : BaseWidget()
+class StreakWidget : BaseWidget()
+class WorkoutWidget : BaseWidget()
+class QuoteWidget : BaseWidget()
 
 private class Snapshot(
     val today: Long,
@@ -66,6 +73,10 @@ private class Snapshot(
     val repsGoal: Int,
     val stepsSupported: Boolean,
     val steps: Int,
+    val streak: Int,
+    val weekActive: List<Boolean>,
+    val goalsDone: Int,
+    val exerciseCount: Int,
 )
 
 object WidgetUpdater {
@@ -87,7 +98,12 @@ object WidgetUpdater {
         val waterIds = mgr.getAppWidgetIds(ComponentName(app, WaterWidget::class.java))
         val summaryIds = mgr.getAppWidgetIds(ComponentName(app, SummaryWidget::class.java))
         val stepsIds = mgr.getAppWidgetIds(ComponentName(app, StepsWidget::class.java))
-        if (habitIds.isEmpty() && waterIds.isEmpty() && summaryIds.isEmpty() && stepsIds.isEmpty()) return
+        val streakIds = mgr.getAppWidgetIds(ComponentName(app, StreakWidget::class.java))
+        val workoutIds = mgr.getAppWidgetIds(ComponentName(app, WorkoutWidget::class.java))
+        val quoteIds = mgr.getAppWidgetIds(ComponentName(app, QuoteWidget::class.java))
+        if (habitIds.isEmpty() && waterIds.isEmpty() && summaryIds.isEmpty() && stepsIds.isEmpty() &&
+            streakIds.isEmpty() && workoutIds.isEmpty() && quoteIds.isEmpty()
+        ) return
 
         if (syncSteps && (summaryIds.isNotEmpty() || stepsIds.isNotEmpty())) {
             val tracker = (app as MyViewApp).container.stepTracker
@@ -98,6 +114,9 @@ object WidgetUpdater {
         if (waterIds.isNotEmpty()) mgr.updateAppWidget(waterIds, waterViews(app, snap))
         if (summaryIds.isNotEmpty()) mgr.updateAppWidget(summaryIds, summaryViews(app, snap))
         if (stepsIds.isNotEmpty()) mgr.updateAppWidget(stepsIds, stepsViews(app, snap))
+        if (streakIds.isNotEmpty()) mgr.updateAppWidget(streakIds, cardViews(app, streakBitmap(snap)))
+        if (workoutIds.isNotEmpty()) mgr.updateAppWidget(workoutIds, cardViews(app, workoutBitmap(snap)))
+        if (quoteIds.isNotEmpty()) mgr.updateAppWidget(quoteIds, cardViews(app, quoteBitmap(snap)))
     }
 
     private suspend fun load(ctx: Context): Snapshot {
@@ -108,16 +127,31 @@ object WidgetUpdater {
         val logs = repo.exerciseLogs.first()
         val repExercises = exercises.filter { it.kind == KIND_REPS }
         val reps = repExercises.sumOf { exerciseTotal(logs, it.id, today) }
+        val doneMap = repo.habitDone.first()
+        // A day counts when anything was done: a habit ticked or an exercise saved.
+        val active = HashSet<Long>()
+        doneMap.values.forEach { active.addAll(it) }
+        logs.forEach { active.add(it.day) }
+        var streak = 0
+        var d = if (today in active) today else today - 1
+        while (d in active) {
+            streak++
+            d--
+        }
         return Snapshot(
             today = today,
             settings = c.settings.settings.value,
             planned = scheduledHabits(repo.habits.first(), today),
-            doneByHabit = repo.habitDone.first(),
+            doneByHabit = doneMap,
             waterMl = repo.waterTotalFor(today),
             reps = reps,
             repsGoal = repExercises.sumOf { it.dailyGoal },
             stepsSupported = c.stepTracker.isSupported,
             steps = c.stepTracker.stepsFor(today),
+            streak = streak,
+            weekActive = (today - 6..today).map { it in active },
+            goalsDone = exercises.count { it.dailyGoal > 0 && exerciseTotal(logs, it.id, today) >= it.dailyGoal },
+            exerciseCount = exercises.size,
         )
     }
 
@@ -235,7 +269,7 @@ object WidgetUpdater {
         val v = RemoteViews(ctx.packageName, R.layout.widget_steps)
         v.setOnClickPendingIntent(R.id.w_root, Reminders.openAppPending(ctx))
         val goal = snap.settings.stepGoal.coerceAtLeast(1)
-        v.setImageViewBitmap(R.id.st_card, stepsCardBitmap(snap.steps, goal, snap.stepsSupported))
+        v.setImageViewBitmap(R.id.st_card, stepsCardBitmap(snap.steps, goal, snap.stepsSupported, pal(snap)))
         v.setContentDescription(
             R.id.st_card,
             if (snap.stepsSupported) "${snap.steps} steps today, goal $goal" else "No step sensor on this phone",
@@ -247,12 +281,12 @@ object WidgetUpdater {
      * The whole "steps only" card as one picture: a blue panel with the step count stacked in two
      * lines, and a white panel with a dial whose hand and arc show progress towards the goal.
      */
-    private fun stepsCardBitmap(steps: Int, goal: Int, supported: Boolean): Bitmap {
+    private fun stepsCardBitmap(steps: Int, goal: Int, supported: Boolean, pal: Pal): Bitmap {
         val w = 480
         val h = 480
-        val blue = 0xFF4A6CFF.toInt()
-        val ink = 0xFF3A3A3F.toInt()
-        val grey = 0xFF9A9AA2.toInt()
+        val blue = pal.accent
+        val ink = pal.ink
+        val grey = pal.sub
         val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bmp)
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -262,9 +296,9 @@ object WidgetUpdater {
         val clip = Path().apply { addRoundRect(RectF(0f, 0f, w.toFloat(), h.toFloat()), 76f, 76f, Path.Direction.CW) }
         canvas.save()
         canvas.clipPath(clip)
-        paint.color = 0xFFFFFFFF.toInt()
+        paint.color = pal.card
         canvas.drawRect(0f, 0f, w.toFloat(), h.toFloat(), paint)
-        paint.color = blue
+        paint.color = pal.panel
         canvas.drawRect(0f, 0f, panelW, h.toFloat(), paint)
         canvas.restore()
 
@@ -301,7 +335,7 @@ object WidgetUpdater {
             style = Paint.Style.STROKE
             strokeWidth = 16f
             strokeCap = Paint.Cap.ROUND
-            color = 0xFFEFEFF3.toInt()
+            color = pal.track
         }
         val rect = RectF(cx - radius, cy - radius, cx + radius, cy + radius)
         canvas.drawArc(rect, 0f, 360f, false, ring)
@@ -326,9 +360,9 @@ object WidgetUpdater {
         hand.strokeWidth = 20f
         canvas.drawLine(cx + dx * (radius - 30f), cy + dy * (radius - 30f), cx + dx * (radius - 8f), cy + dy * (radius - 8f), hand)
         // Hub.
-        paint.color = 0xFFEFEFF3.toInt()
+        paint.color = pal.track
         canvas.drawCircle(cx, cy, 30f, paint)
-        paint.color = 0xFFFFFFFF.toInt()
+        paint.color = pal.card
         canvas.drawCircle(cx, cy, 10f, paint)
 
         // Labels.
@@ -345,6 +379,196 @@ object WidgetUpdater {
         label.color = ink
         val foot = if (supported) "${(steps.toLong() * 100 / goal).coerceAtMost(999)}% of ${String.format(java.util.Locale.US, "%,d", goal)}" else "No step sensor"
         canvas.drawText(foot, cx, h * 0.89f, label)
+        return bmp
+    }
+
+    // ---------- Picture-style widgets: palette, streak, workout, quote ----------
+
+    private class Pal(
+        val card: Int,
+        val panel: Int,
+        val ink: Int,
+        val sub: Int,
+        val track: Int,
+        val accent: Int,
+    )
+
+    private fun shade(c: Int, f: Float): Int {
+        val r = (((c shr 16) and 0xFF) * f).toInt().coerceIn(0, 255)
+        val g = (((c shr 8) and 0xFF) * f).toInt().coerceIn(0, 255)
+        val b = ((c and 0xFF) * f).toInt().coerceIn(0, 255)
+        return (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+    }
+
+    /** Colours for the picture widgets. Style 0 = light, 1 = dark, 2 = accent colour (set in Settings). */
+    private fun pal(snap: Snapshot): Pal {
+        val acc = accent(snap.settings)
+        return when (snap.settings.widgetStyle) {
+            1 -> Pal(0xFF15181E.toInt(), acc, 0xFFFFFFFF.toInt(), 0xFF9AA0AB.toInt(), 0xFF2A2F38.toInt(), acc)
+            2 -> Pal(acc, shade(acc, 0.72f), 0xFFFFFFFF.toInt(), 0xCCFFFFFF.toInt(), 0x40FFFFFF, 0xFFFFFFFF.toInt())
+            else -> Pal(0xFFFFFFFF.toInt(), 0xFF4A6CFF.toInt(), 0xFF3A3A3F.toInt(), 0xFF9A9AA2.toInt(), 0xFFEFEFF3.toInt(), 0xFF4A6CFF.toInt())
+        }
+    }
+
+    private fun cardViews(ctx: Context, bmp: Bitmap): RemoteViews {
+        val v = RemoteViews(ctx.packageName, R.layout.widget_card)
+        v.setOnClickPendingIntent(R.id.w_root, Reminders.openAppPending(ctx))
+        v.setImageViewBitmap(R.id.card_img, bmp)
+        return v
+    }
+
+    private fun roundedCard(w: Int, h: Int, color: Int, radius: Float): Pair<Bitmap, Canvas> {
+        val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        paint.color = color
+        canvas.drawRoundRect(RectF(0f, 0f, w.toFloat(), h.toFloat()), radius, radius, paint)
+        return Pair(bmp, canvas)
+    }
+
+    /** Day streak: a flame, the number of days, and the last 7 days as dots. */
+    private fun streakBitmap(snap: Snapshot): Bitmap {
+        val p = pal(snap)
+        val w = 480
+        val h = 480
+        val (bmp, canvas) = roundedCard(w, h, p.card, 76f)
+        val cx = w / 2f
+        val label = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = p.sub
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            textAlign = Paint.Align.CENTER
+            textSize = 26f
+            letterSpacing = 0.2f
+        }
+        canvas.drawText("STREAK", cx, h * 0.15f, label)
+        val flame = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            textAlign = Paint.Align.CENTER
+            textSize = 84f
+        }
+        canvas.drawText("\uD83D\uDD25", cx, h * 0.34f, flame)
+        val num = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = p.ink
+            typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
+            textAlign = Paint.Align.CENTER
+            textSize = 150f
+        }
+        canvas.drawText(snap.streak.toString(), cx, h * 0.62f, num)
+        label.letterSpacing = 0f
+        label.textSize = 28f
+        label.color = p.ink
+        canvas.drawText(if (snap.streak == 1) "day in a row" else "days in a row", cx, h * 0.72f, label)
+        // Last 7 days, oldest on the left, today on the right (ringed).
+        val dot = Paint(Paint.ANTI_ALIAS_FLAG)
+        val gap = 54f
+        val startX = cx - gap * 3
+        for (i in 0 until 7) {
+            val x = startX + gap * i
+            val on = snap.weekActive.getOrElse(i) { false }
+            dot.style = Paint.Style.FILL
+            dot.color = if (on) p.accent else p.track
+            canvas.drawCircle(x, h * 0.86f, 15f, dot)
+            if (i == 6) {
+                dot.style = Paint.Style.STROKE
+                dot.strokeWidth = 4f
+                dot.color = p.accent
+                canvas.drawCircle(x, h * 0.86f, 23f, dot)
+            }
+        }
+        return bmp
+    }
+
+    /** Reps today as a ring, with how many exercise goals are done. */
+    private fun workoutBitmap(snap: Snapshot): Bitmap {
+        val p = pal(snap)
+        val w = 480
+        val h = 480
+        val (bmp, canvas) = roundedCard(w, h, p.card, 76f)
+        val cx = w / 2f
+        val cy = h * 0.5f
+        val label = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = p.sub
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            textAlign = Paint.Align.CENTER
+            textSize = 26f
+            letterSpacing = 0.2f
+        }
+        canvas.drawText("WORKOUT", cx, h * 0.13f, label)
+        val r = 118f
+        val ring = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = 26f
+            strokeCap = Paint.Cap.ROUND
+            color = p.track
+        }
+        val rect = RectF(cx - r, cy - r, cx + r, cy + r)
+        canvas.drawArc(rect, 0f, 360f, false, ring)
+        val progress = if (snap.repsGoal > 0) (snap.reps.toFloat() / snap.repsGoal).coerceIn(0f, 1f) else 0f
+        if (progress > 0.001f) {
+            ring.color = p.accent
+            canvas.drawArc(rect, -90f, 360f * progress, false, ring)
+        }
+        val num = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = p.ink
+            typeface = Typeface.create("sans-serif-condensed", Typeface.BOLD)
+            textAlign = Paint.Align.CENTER
+            textSize = 96f
+        }
+        canvas.drawText(compact(snap.reps), cx, cy + 22f, num)
+        label.letterSpacing = 0.1f
+        label.textSize = 24f
+        canvas.drawText("REPS", cx, cy + 60f, label)
+        label.letterSpacing = 0f
+        label.textSize = 28f
+        label.color = p.ink
+        canvas.drawText("${snap.goalsDone} of ${snap.exerciseCount} goals done", cx, h * 0.93f, label)
+        return bmp
+    }
+
+    /** The quote of the day, wrapped to fit a wide card. */
+    private fun quoteBitmap(snap: Snapshot): Bitmap {
+        val p = pal(snap)
+        val w = 800
+        val h = 360
+        val (bmp, canvas) = roundedCard(w, h, p.card, 64f)
+        val pad = 48f
+        val tag = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = p.accent
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            textSize = 24f
+            letterSpacing = 0.2f
+        }
+        canvas.drawText("TODAY", pad, 70f, tag)
+        val text = quoteFor(snap.today)
+        val tp = TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = p.ink
+            typeface = Typeface.create("serif", Typeface.NORMAL)
+        }
+        val maxW = (w - 2 * pad).toInt()
+        val maxH = h - 170
+        fun build(sz: Float): StaticLayout {
+            tp.textSize = sz
+            return StaticLayout.Builder.obtain(text, 0, text.length, tp, maxW)
+                .setAlignment(Layout.Alignment.ALIGN_NORMAL)
+                .setLineSpacing(0f, 1.1f)
+                .build()
+        }
+        var size = 46f
+        var layout = build(size)
+        while (layout.height > maxH && size > 24f) {
+            size -= 2f
+            layout = build(size)
+        }
+        canvas.save()
+        canvas.translate(pad, 96f)
+        layout.draw(canvas)
+        canvas.restore()
+        val foot = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = p.sub
+            typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+            textSize = 24f
+            textAlign = Paint.Align.RIGHT
+        }
+        canvas.drawText("MyView", w - pad, h - 36f, foot)
         return bmp
     }
 
