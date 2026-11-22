@@ -69,6 +69,8 @@ data class AppSettings(
     val liveSteps: Boolean = true,
     val look: AppLook = AppLook.HEALTH,
     val displayFont: DisplayFont = DisplayFont.BLACK,
+    /** Look of the picture-style widgets: 0 = light, 1 = dark, 2 = accent colour. */
+    val widgetStyle: Int = 0,
 )
 
 /** Small settings store on top of SharedPreferences. Exposes the settings as a StateFlow. */
@@ -102,6 +104,7 @@ class SettingsStore(context: Context) {
             liveSteps = prefs.getBoolean("liveSteps", true),
             look = AppLook.values().getOrElse(prefs.getInt("look3", AppLook.HEALTH.ordinal)) { AppLook.HEALTH },
             displayFont = DisplayFont.values().getOrElse(prefs.getInt("displayFont", 0)) { DisplayFont.BLACK },
+            widgetStyle = prefs.getInt("widgetStyle", 0).coerceIn(0, 2),
         )
     }
 
@@ -130,6 +133,7 @@ class SettingsStore(context: Context) {
             .putBoolean("liveSteps", next.liveSteps)
             .putInt("look3", next.look.ordinal)
             .putInt("displayFont", next.displayFont.ordinal)
+            .putInt("widgetStyle", next.widgetStyle)
             .apply()
     }
 }
