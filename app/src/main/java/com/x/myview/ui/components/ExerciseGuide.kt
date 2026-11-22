@@ -76,6 +76,13 @@ fun exerciseKeyFor(name: String): String? {
     val n = name.lowercase().replace('-', ' ').replace('_', ' ')
     return when {
         "wall" in n && "sit" in n -> "wallsit"
+        "wall" in n && "push" in n -> "wallpush"
+        "jump" in n && "squat" in n -> "jumpsquat"
+        "high knee" in n || "highknee" in n -> "highknees"
+        "mountain" in n || "climber" in n -> "mountain"
+        "bridge" in n -> "bridge"
+        "leg raise" in n || "legraise" in n -> "legraise"
+        "superman" in n -> "superman"
         "push" in n -> "pushup"
         "pull" in n || "chin up" in n || "chinup" in n -> "pullup"
         "squat" in n -> "squat"
@@ -90,6 +97,8 @@ fun exerciseKeyFor(name: String): String? {
         else -> null
     }
 }
+
+fun exerciseGuideFor(key: String): ExGuide? = GUIDES[key]
 
 private val GUIDES: Map<String, ExGuide> = mapOf(
     "pushup" to ExGuide(
@@ -308,6 +317,132 @@ private val GUIDES: Map<String, ExGuide> = mapOf(
         listOf("Bahut upar uchhalna", "Haath bade ghere me ghumana", "Edi par utarna"),
         "how to jump rope for beginners",
     ),
+    "jumpsquat" to ExGuide(
+        "Thighs • Glutes • Calves • Cardio",
+        listOf(
+            "Start like a normal squat: feet shoulder-width, chest up.",
+            "Sit back and down until thighs are close to parallel.",
+            "Explode upwards and jump, swinging your arms overhead.",
+            "Land softly with bent knees and go straight into the next squat.",
+        ),
+        listOf(
+            "Normal squat ki tarah shuru karo: pair kandhon jitne chaude, seena upar.",
+            "Peeche aur neeche baitho jab tak jaanghe lagbhag zameen ke barabar na ho.",
+            "Zor se upar uchho aur haath sar ke upar le jao.",
+            "Ghutne modke narmi se utro aur seedha agla squat shuru karo.",
+        ),
+        listOf("Landing with stiff, locked knees", "Knees caving inwards", "Not squatting deep before the jump"),
+        listOf("Akdi hui taangon par utarna", "Ghutne andar ki taraf jhukna", "Jump se pehle poora neeche na jana"),
+        "how to do jump squats properly",
+    ),
+    "highknees" to ExGuide(
+        "Legs • Core • Cardio",
+        listOf(
+            "Stand tall with feet hip-width apart.",
+            "Run on the spot and lift each knee up to hip height.",
+            "Pump your arms opposite to your legs.",
+            "Stay on the balls of your feet and keep your chest up.",
+        ),
+        listOf(
+            "Seedhe khade ho, pair kulhon jitne chaude.",
+            "Jagah par daudo aur har ghutna kulhe ki height tak uthao.",
+            "Haath ko pair ke ulte pump karo.",
+            "Panjon par raho aur seena upar rakho.",
+        ),
+        listOf("Knees only lifting a little", "Leaning back", "Landing on heels"),
+        listOf("Ghutne thode hi uthana", "Peeche jhukna", "Edi par utarna"),
+        "how to do high knees exercise",
+    ),
+    "mountain" to ExGuide(
+        "Core • Shoulders • Cardio",
+        listOf(
+            "Start in a high plank: hands under shoulders, body in a straight line.",
+            "Drive one knee towards your chest.",
+            "Switch legs quickly, like running in a plank position.",
+            "Keep your hips low and your core tight.",
+        ),
+        listOf(
+            "High plank me shuru karo: haath kandhon ke neeche, body seedhi line me.",
+            "Ek ghutna chest ki taraf kheencho.",
+            "Jaldi se pair badlo, jaise plank me daud rahe ho.",
+            "Kulhe neeche aur core tight rakho.",
+        ),
+        listOf("Hips bouncing up high", "Hands too far forward", "Going too fast and losing form"),
+        listOf("Kulhe bahut upar uthana", "Haath bahut aage rakhna", "Tez karke form bigadna"),
+        "how to do mountain climbers correctly",
+    ),
+    "bridge" to ExGuide(
+        "Glutes • Hamstrings • Lower back",
+        listOf(
+            "Lie on your back, knees bent, feet flat and hip-width apart.",
+            "Press through your heels and lift your hips up.",
+            "Squeeze your glutes at the top, so shoulders to knees make a straight line.",
+            "Lower slowly and repeat.",
+        ),
+        listOf(
+            "Peeth ke bal let jao, ghutne mude hue, pair zameen par.",
+            "Edi se dabao aur kulhe upar uthao.",
+            "Upar glutes tight karo, kandhe se ghutne tak seedhi line.",
+            "Dheere neeche aao aur dohrao.",
+        ),
+        listOf("Arching the lower back too much", "Pushing through the toes", "Letting knees fall apart"),
+        listOf("Kamar bahut mod dena", "Panjon se dabana", "Ghutne bahar girna"),
+        "how to do glute bridges properly",
+    ),
+    "legraise" to ExGuide(
+        "Lower abs • Hip flexors",
+        listOf(
+            "Lie flat on your back with legs straight, hands by your sides.",
+            "Keep your lower back pressed into the floor.",
+            "Lift both legs together until they point to the ceiling.",
+            "Lower slowly but stop just before your heels touch the floor.",
+        ),
+        listOf(
+            "Peeth ke bal seedhe let jao, taangein seedhi, haath side me.",
+            "Kamar ka neeche ka hissa zameen se chipka rakho.",
+            "Dono taangein saath uthao jab tak chhat ki taraf na ho jaye.",
+            "Dheere neeche lao, par edi zameen se chhune se pehle ruk jao.",
+        ),
+        listOf("Lower back arching off the floor", "Using momentum", "Bending the knees too much"),
+        listOf("Kamar zameen se uthna", "Jhatke se karna", "Ghutne bahut modna"),
+        "how to do leg raises correctly",
+    ),
+    "superman" to ExGuide(
+        "Lower back • Glutes • Shoulders",
+        listOf(
+            "Lie face down with arms stretched forward and legs straight.",
+            "Lift your arms, chest and legs a few centimetres off the floor.",
+            "Hold for 1-2 seconds and squeeze your back and glutes.",
+            "Lower slowly. Keep your neck in line with your spine.",
+        ),
+        listOf(
+            "Ulte let jao, haath aage failaye, taangein seedhi.",
+            "Haath, seena aur taangein zameen se thoda upar uthao.",
+            "1-2 second ruko aur peeth aur glutes tight karo.",
+            "Dheere neeche aao. Gardan ko reedh ki line me rakho.",
+        ),
+        listOf("Craning the neck up", "Lifting too high and straining", "Holding your breath"),
+        listOf("Gardan upar ko tedhi karna", "Bahut upar uthake kheench lagana", "Saans rok lena"),
+        "how to do superman exercise correctly",
+    ),
+    "wallpush" to ExGuide(
+        "Chest • Shoulders • Triceps",
+        listOf(
+            "Stand an arm's length from a wall, hands on the wall at shoulder height.",
+            "Keep your body in a straight line from head to heels.",
+            "Bend your elbows and bring your chest towards the wall.",
+            "Push back until your arms are straight. A great start for beginners.",
+        ),
+        listOf(
+            "Deewar se ek haath ki doori par khade ho, haath kandhe ki height par deewar par.",
+            "Sar se edi tak body seedhi line me rakho.",
+            "Kohni modo aur chest ko deewar ki taraf lao.",
+            "Dhakka dekar haath seedhe karo. Beginners ke liye bahut accha.",
+        ),
+        listOf("Hips sticking out", "Feet too close to the wall", "Half reps"),
+        listOf("Kulhe bahar nikalna", "Pair deewar ke bahut paas rakhna", "Aadhi rep karna"),
+        "how to do wall push ups",
+    ),
 )
 
 private fun openVideo(ctx: Context, query: String) {
@@ -337,8 +472,9 @@ fun ExerciseFigure(
     modifier: Modifier = Modifier,
     playing: Boolean = true,
     slow: Boolean = false,
+    phase0: Float = 0f,
 ) {
-    var phase by remember(anim) { mutableFloatStateOf(0f) }
+    var phase by remember(anim) { mutableFloatStateOf(phase0) }
     LaunchedEffect(anim, playing, slow) {
         if (!playing) return@LaunchedEffect
         var last = 0L
