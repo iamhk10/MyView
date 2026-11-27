@@ -7,4 +7,12 @@
     <string name="widget_quote_desc">A short motivation line for today.</string>
     <string name="widget_steps_desc">Only your step count, with a dial that shows goal progress.</string>
     <string name="widget_summary_desc">Steps, water, reps and habits at a glance.</string>
+    <string name="sc_run_short">Start run</string>
+    <string name="sc_run_long">Start a run or walk</string>
+    <string name="sc_water_short">Water</string>
+    <string name="sc_water_long">Log water</string>
+    <string name="sc_plans_short">Workout plans</string>
+    <string name="sc_plans_long">Open workout plans</string>
+    <string name="sc_focus_short">Focus</string>
+    <string name="sc_focus_long">Start a focus session</string>
 </resources>
