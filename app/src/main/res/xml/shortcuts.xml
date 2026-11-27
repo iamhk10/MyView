@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="start_run"
+        android:enabled="true"
+        android:icon="@drawable/ic_sc_run"
+        android:shortcutShortLabel="@string/sc_run_short"
+        android:shortcutLongLabel="@string/sc_run_long">
+        <intent
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="com.x.myview"
+            android:targetClass="com.x.myview.MainActivity">
+            <extra android:name="route" android:value="run" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="add_water"
+        android:enabled="true"
+        android:icon="@drawable/ic_sc_water"
+        android:shortcutShortLabel="@string/sc_water_short"
+        android:shortcutLongLabel="@string/sc_water_long">
+        <intent
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="com.x.myview"
+            android:targetClass="com.x.myview.MainActivity">
+            <extra android:name="route" android:value="tab:3" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="workout_plans"
+        android:enabled="true"
+        android:icon="@drawable/ic_sc_plans"
+        android:shortcutShortLabel="@string/sc_plans_short"
+        android:shortcutLongLabel="@string/sc_plans_long">
+        <intent
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="com.x.myview"
+            android:targetClass="com.x.myview.MainActivity">
+            <extra android:name="route" android:value="plans" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="focus_timer"
+        android:enabled="true"
+        android:icon="@drawable/ic_sc_focus"
+        android:shortcutShortLabel="@string/sc_focus_short"
+        android:shortcutLongLabel="@string/sc_focus_long">
+        <intent
+            android:action="android.intent.action.MAIN"
+            android:targetPackage="com.x.myview"
+            android:targetClass="com.x.myview.MainActivity">
+            <extra android:name="route" android:value="focus" />
+        </intent>
+    </shortcut>
+</shortcuts>
