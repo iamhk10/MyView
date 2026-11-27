@@ -164,6 +164,8 @@ fun SettingsScreen(vm: MainViewModel, onBack: () -> Unit) {
                 }
             }
 
+            AiCoachSettings(vm)
+
             SectionTitle("Feel")
             MvCard(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {

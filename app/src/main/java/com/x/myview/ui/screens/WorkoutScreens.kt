@@ -119,10 +119,16 @@ fun WorkoutScreen(vm: MainViewModel, onOpen: (String) -> Unit) {
                     .padding(horizontal = 16.dp, vertical = 2.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                MvCard(Modifier.weight(1f), onClick = { onOpen("run") }) {
+                    Column(Modifier.fillMaxWidth().padding(14.dp)) {
+                        Text("Run", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+                        Text("GPS speed", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
                 MvCard(Modifier.weight(1f), onClick = { onOpen("library") }) {
                     Column(Modifier.fillMaxWidth().padding(14.dp)) {
                         Text("Library", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
-                        Text("19 animated exercises", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("19 animated", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
                 MvCard(Modifier.weight(1f), onClick = { onOpen("plans") }) {
