@@ -253,7 +253,9 @@ private fun RunSetup(kg: Float, geminiKey: String) {
                         listOf(10, 15, 20, 30, 45, 60).forEach { m -> ChoiceChip("$m min", minutes == m, { minutes = m }) }
                     }
                 }
-                Stepper("$minutes min", { minutes = (minutes - 5).coerceAtLeast(5) }, { minutes = (minutes + 5).coerceAtMost(180) })
+                Box(Modifier.fillMaxWidth().padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
+                    Stepper("$minutes min", { minutes = (minutes - 5).coerceAtLeast(5) }, { minutes = (minutes + 5).coerceAtMost(180) })
+                }
             }
             RunGoal.DISTANCE -> {
                 Box(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
@@ -261,11 +263,13 @@ private fun RunSetup(kg: Float, geminiKey: String) {
                         listOf(1, 2, 3, 5, 10).forEach { k -> ChoiceChip("$k km", distM == k * 1000, { distM = k * 1000 }) }
                     }
                 }
-                Stepper(
-                    String.format(Locale.US, "%.1f km", distM / 1000f),
-                    { distM = (distM - 500).coerceAtLeast(500) },
-                    { distM = (distM + 500).coerceAtMost(42000) },
-                )
+                Box(Modifier.fillMaxWidth().padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
+                    Stepper(
+                        String.format(Locale.US, "%.1f km", distM / 1000f),
+                        { distM = (distM - 500).coerceAtLeast(500) },
+                        { distM = (distM + 500).coerceAtMost(42000) },
+                    )
+                }
             }
             RunGoal.FREE -> Box(Modifier.padding(horizontal = 20.dp, vertical = 4.dp)) {
                 Text(
@@ -331,27 +335,6 @@ private fun RunSetup(kg: Float, geminiKey: String) {
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun Stepper(label: String, onMinus: () -> Unit, onPlus: () -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center,
-    ) {
-        OutlinedButton(onClick = onMinus) { Text("-") }
-        Text(
-            label,
-            Modifier.width(120.dp),
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-        )
-        OutlinedButton(onClick = onPlus) { Text("+") }
     }
 }
 
