@@ -99,6 +99,7 @@ import com.x.myview.ui.screens.LibraryScreen
 import com.x.myview.ui.screens.MoodScreen
 import com.x.myview.ui.screens.MoreScreen
 import com.x.myview.ui.screens.PlanScreen
+import com.x.myview.ui.screens.RunScreen
 import com.x.myview.ui.screens.PlansScreen
 import com.x.myview.ui.screens.SettingsScreen
 import com.x.myview.ui.screens.SleepScreen
@@ -380,6 +381,7 @@ private fun OverlayHost(vm: MainViewModel, key: String, open: (String) -> Unit, 
             "focus" -> FocusScreen(vm, onBack = close)
             "breathe" -> BreathScreen(vm, onBack = close)
             "awards" -> AwardsScreen(vm, onBack = close)
+            "run" -> RunScreen(vm, onBack = close)
             "library" -> LibraryScreen(vm, onBack = close, onOpen = open)
             "lib" -> LibraryDetailScreen(vm, parts.getOrNull(1) ?: "", onBack = close, onOpen = open)
             "plans" -> PlansScreen(vm, onBack = close, onOpen = open)
