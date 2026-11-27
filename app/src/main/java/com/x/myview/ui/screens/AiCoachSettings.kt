@@ -58,9 +58,12 @@ fun AiCoachSettings(vm: MainViewModel) {
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 modifier = Modifier.fillMaxWidth(),
             )
-            if (t.isNotEmpty() && !t.startsWith("AIza")) {
+            // Google now issues keys that start with AQ. (older ones start with AIza). Only obvious mistakes are flagged.
+            val wrong = t.startsWith("sb_") || (t.isNotEmpty() && t.length < 20)
+            if (wrong) {
                 Text(
-                    "This does not look like a Gemini key. Google Gemini keys start with AIza.",
+                    if (t.startsWith("sb_")) "That is a Supabase key, not a Google Gemini key. Make one at aistudio.google.com/apikey."
+                    else "This key looks too short. Copy the whole key from Google AI Studio.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                 )
