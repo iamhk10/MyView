@@ -14,6 +14,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.os.VibrationEffect
+import android.speech.tts.TextToSpeech
 import android.os.Vibrator
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -36,6 +37,10 @@ class RunService : Service(), LocationListener {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var lm: LocationManager? = null
     private var announced = false
+    private var tts: TextToSpeech? = null
+    private var ttsReady = false
+    private var spokenKm = 0
+    private var spokeStart = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -66,6 +71,22 @@ class RunService : Service(), LocationListener {
         } catch (_: Exception) {
             // No GPS on this phone: the screen shows "searching" forever, and the user can stop.
         }
+        if (RunTracker.state.value.voice) {
+            try {
+                tts = TextToSpeech(applicationContext) { code ->
+                    if (code == TextToSpeech.SUCCESS) {
+                        val t = tts
+                        if (t != null) {
+                            val r = t.setLanguage(Locale.US)
+                            if (r == TextToSpeech.LANG_MISSING_DATA || r == TextToSpeech.LANG_NOT_SUPPORTED) t.setLanguage(Locale.getDefault())
+                        }
+                        ttsReady = true
+                    }
+                }
+            } catch (_: Exception) {
+                tts = null
+            }
+        }
         scope.launch {
             var n = 0
             while (true) {
@@ -73,17 +94,42 @@ class RunService : Service(), LocationListener {
                 RunTracker.tick()
                 val s = RunTracker.state.value
                 if (s.status == RunStatus.DONE || s.status == RunStatus.IDLE) {
+                    // Let a closing sentence (for example "Goal reached") finish before the service stops.
+                    var wait = 0
+                    while (wait < 12 && ttsReady && tts?.isSpeaking == true) {
+                        delay(500)
+                        wait++
+                    }
                     stopSelf()
                     break
                 }
+                if (s.voice && ttsReady && s.status == RunStatus.RUNNING) {
+                    if (!spokeStart) {
+                        spokeStart = true
+                        speak(if (s.walk) "Walk started. Have a good one." else "Run started. Have a good one.")
+                    }
+                    while (spokenKm < s.splits.size) {
+                        val sec = s.splits[spokenKm]
+                        spokenKm += 1
+                        speak("Kilometre $spokenKm done. Last kilometre took ${sec / 60} minutes ${sec % 60} seconds.")
+                    }
+                }
                 if (s.goalReached && s.status == RunStatus.RUNNING && !announced) {
                     announced = true
+                    if (s.voice && ttsReady) speak("Goal reached. Great job!")
                     buzz()
                     RunTracker.finish(applicationContext)
                 }
                 n++
                 if (n % 2 == 0) refreshNotification()
             }
+        }
+    }
+
+    private fun speak(text: String) {
+        try {
+            tts?.speak(text, TextToSpeech.QUEUE_ADD, null, "run")
+        } catch (_: Exception) {
         }
     }
 
@@ -143,6 +189,11 @@ class RunService : Service(), LocationListener {
     override fun onDestroy() {
         try {
             lm?.removeUpdates(this)
+        } catch (_: Exception) {
+        }
+        try {
+            tts?.stop()
+            tts?.shutdown()
         } catch (_: Exception) {
         }
         scope.cancel()

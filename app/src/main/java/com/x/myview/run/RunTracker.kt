@@ -39,6 +39,8 @@ data class RunState(
     /** Seconds when [goal] is TIME, metres when DISTANCE. */
     val goalValue: Int = 0,
     val walk: Boolean = false,
+    /** Speak the kilometre splits out loud. */
+    val voice: Boolean = false,
     val elapsedSec: Int = 0,
     val distanceM: Float = 0f,
     /** Smoothed current speed in metres per second. */
@@ -71,10 +73,10 @@ object RunTracker {
     @Volatile private var weightKg = 65f
     @Volatile private var kmMarkSec = 0
 
-    fun configure(goal: RunGoal, value: Int, walk: Boolean, kg: Float) {
+    fun configure(goal: RunGoal, value: Int, walk: Boolean, kg: Float, voice: Boolean = false) {
         if (_state.value.status == RunStatus.RUNNING || _state.value.status == RunStatus.PAUSED) return
         weightKg = if (kg in 25f..250f) kg else 65f
-        _state.value = RunState(goal = goal, goalValue = value, walk = walk)
+        _state.value = RunState(goal = goal, goalValue = value, walk = walk, voice = voice)
     }
 
     fun begin() {
