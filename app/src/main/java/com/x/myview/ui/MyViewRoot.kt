@@ -169,6 +169,22 @@ private fun RootContent(vm: MainViewModel) {
     BackHandler(enabled = overlay != null) { overlay = null }
     BackHandler(enabled = overlay == null && tab != 0) { tab = 0 }
 
+    // Launcher shortcuts (long-press the app icon) arrive as a pending route.
+    val pending by PendingRoute.route.collectAsState()
+    LaunchedEffect(pending) {
+        val r = pending ?: return@LaunchedEffect
+        if (r.startsWith("tab:")) {
+            val n = r.removePrefix("tab:").toIntOrNull()
+            if (n != null && n in 0..5) {
+                tab = n
+                overlay = null
+            }
+        } else if (r.isNotBlank()) {
+            overlay = r
+        }
+        PendingRoute.route.value = null
+    }
+
     val settings by vm.settings.collectAsState()
     val bento = settings.look == AppLook.BENTO
     val health = settings.look == AppLook.HEALTH
