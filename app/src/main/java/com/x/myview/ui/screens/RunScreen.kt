@@ -109,7 +109,7 @@ fun RunScreen(vm: MainViewModel, onBack: () -> Unit) {
             onBack,
         )
         when (st.status) {
-            RunStatus.IDLE -> RunSetup(kg, settings.geminiKey)
+            RunStatus.IDLE -> RunSetup(vm, kg, settings.geminiKey)
             RunStatus.DONE -> {
                 val rec = st.record
                 Column(
@@ -158,8 +158,9 @@ fun RunScreen(vm: MainViewModel, onBack: () -> Unit) {
 // ---------------------------------------------------------------------------------------------
 
 @Composable
-private fun RunSetup(kg: Float, geminiKey: String) {
+private fun RunSetup(vm: MainViewModel, kg: Float, geminiKey: String) {
     val ctx = LocalContext.current
+    val settings by vm.settings.collectAsState()
     var walk by rememberSaveable { mutableStateOf(false) }
     var goalIdx by rememberSaveable { mutableIntStateOf(0) }
     var minutes by rememberSaveable { mutableIntStateOf(20) }
@@ -188,7 +189,7 @@ private fun RunSetup(kg: Float, geminiKey: String) {
                 RunGoal.DISTANCE -> distM
                 RunGoal.FREE -> 0
             }
-            RunTracker.configure(goal, value, walk, kg)
+            RunTracker.configure(goal, value, walk, kg, settings.voiceCoach)
             RunTracker.begin()
             RunService.start(ctx)
         }
@@ -280,6 +281,21 @@ private fun RunSetup(kg: Float, geminiKey: String) {
             }
         }
 
+        SectionTitle("Voice coach")
+        Box(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+            ChipFlow {
+                ChoiceChip("On", settings.voiceCoach, { vm.updateSettings { it.copy(voiceCoach = true) } })
+                ChoiceChip("Off", !settings.voiceCoach, { vm.updateSettings { it.copy(voiceCoach = false) } })
+            }
+        }
+        Box(Modifier.padding(horizontal = 20.dp)) {
+            Text(
+                "Speaks when you start, after every kilometre and when the goal is reached.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
         Box(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
             Button(
                 onClick = {
@@ -306,6 +322,9 @@ private fun RunSetup(kg: Float, geminiKey: String) {
         }
 
         if (history.isNotEmpty()) {
+            SectionTitle("Your week")
+            RunWeekCard(history)
+            RunBestsCard(history)
             SectionTitle("Recent")
             history.take(8).forEach { r ->
                 MvCard(Modifier.padding(horizontal = 16.dp, vertical = 4.dp), onClick = { viewing = r }) {
@@ -476,6 +495,26 @@ private fun RunResultBody(rec: RunRecord, points: List<RunPoint>, key: String, b
                 }
             }
         }
+        Button(
+            onClick = {
+                val text = String.format(
+                    Locale.US,
+                    "I %s %s km in %s (avg %.1f km/h, pace %s /km) with MyView.",
+                    if (rec.walk) "walked" else "ran", kmText(rec.distanceM), formatDuration(rec.durationSec),
+                    speedKmh(rec.avgSpeedMs), paceText(rec.avgSpeedMs),
+                )
+                try {
+                    val send = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, text)
+                    }
+                    ctx.startActivity(Intent.createChooser(send, "Share run").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                } catch (_: Exception) {
+                    Toast.makeText(ctx, "Nothing to share with", Toast.LENGTH_SHORT).show()
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("Share summary") }
         MvCard(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Quick review", fontWeight = FontWeight.SemiBold)
