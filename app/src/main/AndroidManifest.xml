@@ -1,7 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- MyView is 100% offline: there is intentionally NO android.permission.INTERNET here. -->
+    <!-- MyView works fully offline. INTERNET is used only by the optional AI coach after a run
+         (and only when the user has typed a key in Settings); nothing else ever goes online. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
@@ -11,6 +17,9 @@
     <!-- Step counter is optional: phones without the sensor can still install and use the app. -->
     <uses-feature
         android:name="android.hardware.sensor.stepcounter"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.location.gps"
         android:required="false" />
 
     <application
@@ -38,6 +47,11 @@
             android:name=".steps.StepService"
             android:exported="false"
             android:foregroundServiceType="health" />
+
+        <service
+            android:name=".run.RunService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
 
         <receiver
             android:name=".reminders.ReminderReceiver"
