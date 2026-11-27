@@ -22,6 +22,13 @@
         android:name="android.hardware.location.gps"
         android:required="false" />
 
+    <!-- Lets the app find the phone's text-to-speech engine (voice coach during runs). -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
     <application
         android:name=".MyViewApp"
         android:allowBackup="false"
@@ -41,6 +48,9 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
 
         <service
