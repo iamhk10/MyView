@@ -73,6 +73,8 @@ data class AppSettings(
     val widgetStyle: Int = 0,
     /** Optional Google Gemini key for the AI coach after a run. Typed by the user, kept only on this phone. */
     val geminiKey: String = "",
+    /** Speak the distance and pace out loud during a run. */
+    val voiceCoach: Boolean = true,
 )
 
 /** Small settings store on top of SharedPreferences. Exposes the settings as a StateFlow. */
@@ -108,6 +110,7 @@ class SettingsStore(context: Context) {
             displayFont = DisplayFont.values().getOrElse(prefs.getInt("displayFont", 0)) { DisplayFont.BLACK },
             widgetStyle = prefs.getInt("widgetStyle", 0).coerceIn(0, 2),
             geminiKey = prefs.getString("geminiKey", "") ?: "",
+            voiceCoach = prefs.getBoolean("voiceCoach", true),
         )
     }
 
@@ -138,6 +141,7 @@ class SettingsStore(context: Context) {
             .putInt("displayFont", next.displayFont.ordinal)
             .putInt("widgetStyle", next.widgetStyle)
             .putString("geminiKey", next.geminiKey)
+            .putBoolean("voiceCoach", next.voiceCoach)
             .apply()
     }
 }
