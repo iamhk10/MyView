@@ -71,6 +71,8 @@ data class AppSettings(
     val displayFont: DisplayFont = DisplayFont.BLACK,
     /** Look of the picture-style widgets: 0 = light, 1 = dark, 2 = accent colour. */
     val widgetStyle: Int = 0,
+    /** Optional Google Gemini key for the AI coach after a run. Typed by the user, kept only on this phone. */
+    val geminiKey: String = "",
 )
 
 /** Small settings store on top of SharedPreferences. Exposes the settings as a StateFlow. */
@@ -105,6 +107,7 @@ class SettingsStore(context: Context) {
             look = AppLook.values().getOrElse(prefs.getInt("look3", AppLook.HEALTH.ordinal)) { AppLook.HEALTH },
             displayFont = DisplayFont.values().getOrElse(prefs.getInt("displayFont", 0)) { DisplayFont.BLACK },
             widgetStyle = prefs.getInt("widgetStyle", 0).coerceIn(0, 2),
+            geminiKey = prefs.getString("geminiKey", "") ?: "",
         )
     }
 
@@ -134,6 +137,7 @@ class SettingsStore(context: Context) {
             .putInt("look3", next.look.ordinal)
             .putInt("displayFont", next.displayFont.ordinal)
             .putInt("widgetStyle", next.widgetStyle)
+            .putString("geminiKey", next.geminiKey)
             .apply()
     }
 }
