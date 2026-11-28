@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import com.x.myview.run.RunTracker
 import com.x.myview.ui.MainViewModel
 import com.x.myview.ui.MyViewRoot
 import com.x.myview.ui.PendingRoute
@@ -19,7 +20,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         // Only a fresh launch carries a shortcut; after a rotation the route was already handled.
-        if (savedInstanceState == null) PendingRoute.route.value = intent?.getStringExtra("route")
+        // A run that is still going (the service keeps tracking while the app is away) takes you straight back to it.
+        if (savedInstanceState == null) {
+            PendingRoute.route.value = intent?.getStringExtra("route") ?: if (RunTracker.isActive()) "run" else null
+        }
         setContent { MyViewRoot(vm) }
     }
 
