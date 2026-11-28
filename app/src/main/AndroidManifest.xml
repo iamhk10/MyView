@@ -152,5 +152,53 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_quote_info" />
         </receiver>
+
+        <receiver
+            android:name=".widget.RingsWidget"
+            android:exported="false"
+            android:label="@string/widget_rings_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_rings_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.TodayWidget"
+            android:exported="false"
+            android:label="@string/widget_today_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_today_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.RunWeekWidget"
+            android:exported="false"
+            android:label="@string/widget_runweek_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_runweek_info" />
+        </receiver>
+
+        <receiver
+            android:name=".widget.StepsWeekWidget"
+            android:exported="false"
+            android:label="@string/widget_stepsweek_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_stepsweek_info" />
+        </receiver>
     </application>
 </manifest>
