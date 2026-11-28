@@ -15,4 +15,12 @@
     <string name="sc_plans_long">Open workout plans</string>
     <string name="sc_focus_short">Focus</string>
     <string name="sc_focus_long">Start a focus session</string>
+    <string name="widget_rings_desc">Three glowing rings for steps, water and reps, with the average in the middle.</string>
+    <string name="widget_today_desc">Greeting, date, streak and four progress bars for your day.</string>
+    <string name="widget_runweek_desc">Your run and walk distance for the last 7 days as bars.</string>
+    <string name="widget_stepsweek_desc">Your steps for the last 7 days with the daily goal line.</string>
+    <string name="widget_rings_name">MyView Rings</string>
+    <string name="widget_today_name">MyView Today</string>
+    <string name="widget_runweek_name">MyView Run week</string>
+    <string name="widget_stepsweek_name">MyView Steps week</string>
 </resources>
