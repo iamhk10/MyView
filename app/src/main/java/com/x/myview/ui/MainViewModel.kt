@@ -21,6 +21,7 @@ import com.x.myview.data.db.WaterLogEntity
 import com.x.myview.reminders.Reminders
 import com.x.myview.util.todayEpochDay
 import com.x.myview.steps.StepService
+import com.x.myview.run.RunStore
 import com.x.myview.widget.WidgetUpdater
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -258,6 +259,8 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     breath = extras.breathSessions.value,
                     settings = settingsStore.settings.value,
                     hasExtras = true,
+                    runs = RunStore.all(app),
+                    hasRuns = true,
                 )
                 val text = Backup.toJson(repo.exportData(snapshot))
                 withContext(Dispatchers.IO) {
@@ -286,9 +289,10 @@ class MainViewModel(private val app: Application) : AndroidViewModel(app) {
                     data.settings?.let { restored -> settingsStore.update { restored } }
                     if (settingsStore.settings.value.liveSteps) StepService.startIfEnabled(app) else StepService.stop(app)
                 }
+                if (data.hasRuns) RunStore.replaceAll(app, data.runs)
                 Reminders.scheduleAll(app)
                 WidgetUpdater.updateAll(app)
-                "Restored ${data.habits.size} habits, ${data.exercises.size} exercises and ${data.habitLogs.size + data.exerciseLogs.size + data.water.size + data.sleep.size + data.weight.size + data.mood.size} log entries" + (if (data.hasExtras) ", plus steps, focus, breathing and settings." else ".")
+                "Restored ${data.habits.size} habits, ${data.exercises.size} exercises and ${data.habitLogs.size + data.exerciseLogs.size + data.water.size + data.sleep.size + data.weight.size + data.mood.size} log entries" + (if (data.hasExtras) ", plus steps, focus, breathing and settings" else "") + (if (data.hasRuns) " and ${data.runs.size} runs and walks." else ".")
             } catch (e: Exception) {
                 "Restore failed: ${e.message ?: "this is not a MyView backup"}. Your data was not changed."
             }

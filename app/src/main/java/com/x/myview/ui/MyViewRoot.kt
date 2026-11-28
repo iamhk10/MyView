@@ -79,7 +79,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.x.myview.ui.components.ConfettiBurst
+import com.x.myview.run.RunTracker
 import com.x.myview.ui.components.FloatingNavBar
+import com.x.myview.ui.components.IntroGate
+import com.x.myview.ui.components.LaunchIntro
 import com.x.myview.ui.components.NAV_BAR_HEIGHT
 import com.x.myview.ui.components.NavTab
 import com.x.myview.ui.components.appBackground
@@ -161,6 +164,12 @@ fun MyViewRoot(vm: MainViewModel) {
 private fun RootContent(vm: MainViewModel) {
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var overlay by rememberSaveable { mutableStateOf<String?>(null) }
+    // The opening animation plays once per app start, and not when a run is already going (you want that screen fast).
+    var showIntro by remember {
+        val play = !IntroGate.played && !RunTracker.isActive()
+        IntroGate.played = true
+        mutableStateOf(play)
+    }
     val celebrate by vm.celebrate.collectAsState()
     val strongHaptic = rememberHaptic(strong = true)
     val firstCelebrate = remember { celebrate }
@@ -227,6 +236,7 @@ private fun RootContent(vm: MainViewModel) {
         }
         ConfettiBurst(celebrate)
       }
+      if (showIntro) LaunchIntro { showIntro = false }
     }
 }
 
