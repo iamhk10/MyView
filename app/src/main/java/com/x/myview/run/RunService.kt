@@ -3,6 +3,7 @@ package com.x.myview.run
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -19,8 +20,8 @@ import android.os.Vibrator
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.x.myview.MainActivity
 import com.x.myview.R
-import com.x.myview.reminders.Reminders
 import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -146,12 +147,12 @@ class RunService : Service(), LocationListener {
         val sec = s.elapsedSec
         val time = String.format(Locale.US, "%d:%02d", sec / 60, sec % 60)
         val text = if (s.status == RunStatus.PAUSED) "Paused" else
-            String.format(Locale.US, "%s km  •  %.1f km/h", kmText(s.distanceM), speedKmh(s.speedMs))
+            String.format(Locale.US, "%s  •  %.1f km/h", distLabel(s.distanceM), speedKmh(s.speedMs))
         return NotificationCompat.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_notif)
             .setContentTitle(if (s.walk) "Walking  $time" else "Running  $time")
             .setContentText(text)
-            .setContentIntent(Reminders.openAppPending(this))
+            .setContentIntent(openRunPending())
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setSilent(true)
@@ -160,6 +161,14 @@ class RunService : Service(), LocationListener {
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .build()
+    }
+
+    /** Tapping the notification opens the live run screen. */
+    private fun openRunPending(): PendingIntent {
+        val i = Intent(this, MainActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            .putExtra("route", "run")
+        return PendingIntent.getActivity(this, 7003, i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
     }
 
     private fun refreshNotification() {

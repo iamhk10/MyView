@@ -184,9 +184,16 @@ object RunTracker {
             splits = s0.splits,
         )
         if (rec.distanceM >= 20f) RunStore.add(ctx.applicationContext, rec)
+        try {
+            com.x.myview.widget.WidgetUpdater.updateAllAsync(ctx)
+        } catch (_: Exception) {
+        }
         last = null
         _state.update { it.copy(status = RunStatus.DONE, elapsedSec = sec, speedMs = 0f, record = rec) }
     }
+
+    /** True while a run is going on or paused (the service is still tracking). */
+    fun isActive(): Boolean = _state.value.status == RunStatus.RUNNING || _state.value.status == RunStatus.PAUSED
 
     fun reset() {
         last = null
@@ -205,37 +212,30 @@ object RunStore {
     fun all(ctx: Context): List<RunRecord> {
         val raw = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(KEY, null) ?: return emptyList()
         return try {
-            val arr = JSONArray(raw)
-            (0 until arr.length()).map { i ->
-                val o = arr.getJSONObject(i)
-                val sp = o.optJSONArray("splits") ?: JSONArray()
-                RunRecord(
-                    startedAt = o.getLong("at"),
-                    durationSec = o.getInt("sec"),
-                    distanceM = o.getDouble("m").toFloat(),
-                    maxSpeedMs = o.optDouble("max", 0.0).toFloat(),
-                    goal = RunGoal.values().getOrElse(o.optInt("goal", 0)) { RunGoal.FREE },
-                    goalValue = o.optInt("gv", 0),
-                    walk = o.optBoolean("walk", false),
-                    calories = o.optInt("kcal", 0),
-                    splits = (0 until sp.length()).map { sp.getInt(it) },
-                )
-            }
+            decode(JSONArray(raw))
         } catch (_: Exception) {
             emptyList()
         }
     }
 
-    fun add(ctx: Context, r: RunRecord) {
-        val list = (listOf(r) + all(ctx)).take(MAX)
-        save(ctx, list)
+    /** Reads the list written by [encode]. Used for the stored history and for backups. */
+    fun decode(arr: JSONArray): List<RunRecord> = (0 until arr.length()).map { i ->
+        val o = arr.getJSONObject(i)
+        val sp = o.optJSONArray("splits") ?: JSONArray()
+        RunRecord(
+            startedAt = o.getLong("at"),
+            durationSec = o.getInt("sec"),
+            distanceM = o.getDouble("m").toFloat(),
+            maxSpeedMs = o.optDouble("max", 0.0).toFloat(),
+            goal = RunGoal.values().getOrElse(o.optInt("goal", 0)) { RunGoal.FREE },
+            goalValue = o.optInt("gv", 0),
+            walk = o.optBoolean("walk", false),
+            calories = o.optInt("kcal", 0),
+            splits = (0 until sp.length()).map { sp.getInt(it) },
+        )
     }
 
-    fun delete(ctx: Context, startedAt: Long) {
-        save(ctx, all(ctx).filter { it.startedAt != startedAt })
-    }
-
-    private fun save(ctx: Context, list: List<RunRecord>) {
+    fun encode(list: List<RunRecord>): JSONArray {
         val arr = JSONArray()
         list.forEach { r ->
             arr.put(
@@ -251,6 +251,24 @@ object RunStore {
                     .put("splits", JSONArray(r.splits)),
             )
         }
-        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY, arr.toString()).apply()
+        return arr
+    }
+
+    /** Replaces the whole history (restore from a backup). Newest first, at most [MAX]. */
+    fun replaceAll(ctx: Context, list: List<RunRecord>) {
+        save(ctx, list.sortedByDescending { it.startedAt }.take(MAX))
+    }
+
+    fun add(ctx: Context, r: RunRecord) {
+        val list = (listOf(r) + all(ctx)).take(MAX)
+        save(ctx, list)
+    }
+
+    fun delete(ctx: Context, startedAt: Long) {
+        save(ctx, all(ctx).filter { it.startedAt != startedAt })
+    }
+
+    private fun save(ctx: Context, list: List<RunRecord>) {
+        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY, encode(list).toString()).apply()
     }
 }

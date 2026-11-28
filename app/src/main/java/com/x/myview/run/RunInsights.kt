@@ -18,6 +18,19 @@ fun paceTextSec(secPerKm: Int): String =
 
 fun kmText(m: Float): String = String.format(Locale.US, "%.2f", m / 1000f)
 
+/** Value and unit for a distance: metres below 1 km (so sprints read right), kilometres above. */
+fun distParts(m: Float): Pair<String, String> =
+    if (m < 1000f) m.toInt().toString() to "m" else kmText(m) to "km"
+
+fun distLabel(m: Float): String = distParts(m).let { it.first + " " + it.second }
+
+/** A distance target: 50 m, 400 m, 1 km, 2.5 km. */
+fun goalDistText(m: Int): String = when {
+    m < 1000 -> "$m m"
+    m % 1000 == 0 -> "${m / 1000} km"
+    else -> String.format(Locale.US, "%.1f km", m / 1000f)
+}
+
 /** Calories from an average speed: MET (effort) x body weight x hours. */
 fun caloriesFor(kmh: Float, kg: Float, seconds: Int): Int {
     val met = when {
@@ -40,7 +53,7 @@ fun offlineInsight(rec: RunRecord, history: List<RunRecord>): String {
     val lines = ArrayList<String>()
     val what = if (rec.walk) "walk" else "run"
     lines.add(
-        String.format(Locale.US, "You covered %.2f km in %s at %.1f km/h (pace %s /km).", km, clock(rec.durationSec), kmh, paceText(rec.avgSpeedMs)),
+        String.format(Locale.US, "You covered %s in %s at %.1f km/h (pace %s /km).", distLabel(rec.distanceM), clock(rec.durationSec), kmh, paceText(rec.avgSpeedMs)),
     )
     lines.add(
         if (rec.walk) {
@@ -64,7 +77,7 @@ fun offlineInsight(rec: RunRecord, history: List<RunRecord>): String {
             lines.add(if (rec.durationSec >= rec.goalValue) "Time goal of ${clock(rec.goalValue)} completed." else "You finished ${(rec.durationSec * 100 / rec.goalValue)}% of your time goal.")
         }
         RunGoal.DISTANCE -> if (rec.goalValue > 0) {
-            lines.add(if (rec.distanceM >= rec.goalValue) String.format(Locale.US, "Distance goal of %.1f km completed.", rec.goalValue / 1000f) else "You finished ${(rec.distanceM * 100 / rec.goalValue).toInt()}% of your distance goal.")
+            lines.add(if (rec.distanceM >= rec.goalValue) "Distance goal of ${goalDistText(rec.goalValue)} completed." else "You finished ${(rec.distanceM * 100 / rec.goalValue).toInt()}% of your distance goal.")
         }
         RunGoal.FREE -> {}
     }
@@ -119,7 +132,7 @@ fun buildCoachPrompt(rec: RunRecord, history: List<RunRecord>): String {
     if (rec.splits.isNotEmpty()) sb.append("Km splits (min/km): ").append(rec.splits.joinToString(", ") { paceTextSec(it) }).append('\n')
     when (rec.goal) {
         RunGoal.TIME -> sb.append("Goal: run for ${rec.goalValue / 60} minutes\n")
-        RunGoal.DISTANCE -> sb.append(String.format(Locale.US, "Goal: %.1f km\n", rec.goalValue / 1000f))
+        RunGoal.DISTANCE -> sb.append("Goal: ${goalDistText(rec.goalValue)}\n")
         RunGoal.FREE -> sb.append("Goal: free run\n")
     }
     val prev = history.take(5)
