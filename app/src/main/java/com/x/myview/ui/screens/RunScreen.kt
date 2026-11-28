@@ -11,7 +11,14 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -66,7 +73,9 @@ import com.x.myview.run.RunStatus
 import com.x.myview.run.RunStore
 import com.x.myview.run.RunTracker
 import com.x.myview.run.buildCoachPrompt
-import com.x.myview.run.kmText
+import com.x.myview.run.distLabel
+import com.x.myview.run.distParts
+import com.x.myview.run.goalDistText
 import com.x.myview.run.offlineInsight
 import com.x.myview.run.paceText
 import com.x.myview.run.paceTextSec
@@ -251,24 +260,32 @@ private fun RunSetup(vm: MainViewModel, kg: Float, geminiKey: String) {
             RunGoal.TIME -> {
                 Box(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
                     ChipFlow {
-                        listOf(10, 15, 20, 30, 45, 60).forEach { m -> ChoiceChip("$m min", minutes == m, { minutes = m }) }
+                        listOf(1, 2, 5, 10, 15, 20, 30, 45, 60).forEach { m -> ChoiceChip("$m min", minutes == m, { minutes = m }) }
                     }
                 }
                 Box(Modifier.fillMaxWidth().padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
-                    Stepper("$minutes min", { minutes = (minutes - 5).coerceAtLeast(5) }, { minutes = (minutes + 5).coerceAtMost(180) })
+                    // 1 minute steps while short (sprints, intervals), 5 minute steps after 10.
+                    Stepper(
+                        "$minutes min",
+                        { minutes = (if (minutes <= 10) minutes - 1 else minutes - 5).coerceAtLeast(1) },
+                        { minutes = (if (minutes < 10) minutes + 1 else minutes + 5).coerceAtMost(180) },
+                    )
                 }
             }
             RunGoal.DISTANCE -> {
                 Box(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
                     ChipFlow {
-                        listOf(1, 2, 3, 5, 10).forEach { k -> ChoiceChip("$k km", distM == k * 1000, { distM = k * 1000 }) }
+                        listOf(50, 100, 200, 400, 1000, 2000, 3000, 5000, 10000).forEach { m ->
+                            ChoiceChip(goalDistText(m), distM == m, { distM = m })
+                        }
                     }
                 }
                 Box(Modifier.fillMaxWidth().padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
+                    // 50 m steps up to 1 km (sprints), then 500 m steps.
                     Stepper(
-                        String.format(Locale.US, "%.1f km", distM / 1000f),
-                        { distM = (distM - 500).coerceAtLeast(500) },
-                        { distM = (distM + 500).coerceAtMost(42000) },
+                        goalDistText(distM),
+                        { distM = (if (distM <= 1000) distM - 50 else distM - 500).coerceAtLeast(50) },
+                        { distM = (if (distM < 1000) distM + 50 else distM + 500).coerceAtMost(42000) },
                     )
                 }
             }
@@ -336,7 +353,7 @@ private fun RunSetup(vm: MainViewModel, kg: Float, geminiKey: String) {
                     ) {
                         Column(Modifier.weight(1f)) {
                             Text(
-                                String.format(Locale.US, "%s km  •  %s", kmText(r.distanceM), formatDuration(r.durationSec)),
+                                String.format(Locale.US, "%s  •  %s", distLabel(r.distanceM), formatDuration(r.durationSec)),
                                 fontWeight = FontWeight.SemiBold,
                             )
                             Text(
@@ -399,7 +416,34 @@ private fun RunLive(st: RunState, onToggle: () -> Unit, onFinish: () -> Unit) {
             style = MaterialTheme.typography.labelLarge,
             color = if (st.gpsFix || st.status == RunStatus.PAUSED) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
         )
-        Text(formatDuration(st.elapsedSec), fontSize = 72.sp, fontWeight = FontWeight.Bold)
+        // A slow breathing glow behind the clock while the run is going.
+        val pulseT = rememberInfiniteTransition(label = "runPulse")
+        val pulse by pulseT.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(1600), RepeatMode.Reverse),
+            label = "pulse",
+        )
+        val glow = MaterialTheme.colorScheme.primary
+        val running = st.status == RunStatus.RUNNING
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
+                .drawBehind {
+                    if (running) {
+                        val r = size.width * (0.34f + 0.10f * pulse)
+                        drawCircle(
+                            Brush.radialGradient(listOf(glow.copy(alpha = 0.30f - 0.14f * pulse), Color.Transparent), center = center, radius = r),
+                            radius = r,
+                            center = center,
+                        )
+                    }
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(formatDuration(st.elapsedSec), fontSize = 72.sp, fontWeight = FontWeight.Bold)
+        }
 
         if (st.goal != RunGoal.FREE && st.goalValue > 0) {
             val p = if (st.goal == RunGoal.TIME) st.elapsedSec.toFloat() / st.goalValue else st.distanceM / st.goalValue
@@ -407,7 +451,7 @@ private fun RunLive(st: RunState, onToggle: () -> Unit, onFinish: () -> Unit) {
             Spacer(Modifier.height(4.dp))
             Text(
                 if (st.goal == RunGoal.TIME) "Target ${formatDuration(st.goalValue)}"
-                else String.format(Locale.US, "Target %.1f km", st.goalValue / 1000f),
+                else "Target " + goalDistText(st.goalValue),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -415,7 +459,8 @@ private fun RunLive(st: RunState, onToggle: () -> Unit, onFinish: () -> Unit) {
         Spacer(Modifier.height(10.dp))
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            RunTile("DISTANCE", kmText(st.distanceM), "km", Modifier.weight(1f), big = true)
+            val dd = distParts(st.distanceM)
+            RunTile("DISTANCE", dd.first, dd.second, Modifier.weight(1f), big = true)
             RunTile("SPEED", String.format(Locale.US, "%.1f", speedKmh(st.speedMs)), "km/h", Modifier.weight(1f), big = true)
         }
         Spacer(Modifier.height(10.dp))
@@ -461,7 +506,8 @@ private fun RunResultBody(rec: RunRecord, points: List<RunPoint>, key: String, b
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            RunTile("DISTANCE", kmText(rec.distanceM), "km", Modifier.weight(1f), big = true)
+            val dd = distParts(rec.distanceM)
+            RunTile("DISTANCE", dd.first, dd.second, Modifier.weight(1f), big = true)
             RunTile("TIME", formatDuration(rec.durationSec), "", Modifier.weight(1f), big = true)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -499,8 +545,8 @@ private fun RunResultBody(rec: RunRecord, points: List<RunPoint>, key: String, b
             onClick = {
                 val text = String.format(
                     Locale.US,
-                    "I %s %s km in %s (avg %.1f km/h, pace %s /km) with MyView.",
-                    if (rec.walk) "walked" else "ran", kmText(rec.distanceM), formatDuration(rec.durationSec),
+                    "I %s %s in %s (avg %.1f km/h, pace %s /km) with MyView.",
+                    if (rec.walk) "walked" else "ran", distLabel(rec.distanceM), formatDuration(rec.durationSec),
                     speedKmh(rec.avgSpeedMs), paceText(rec.avgSpeedMs),
                 )
                 try {

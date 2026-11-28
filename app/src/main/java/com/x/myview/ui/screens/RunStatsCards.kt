@@ -18,6 +18,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.x.myview.run.RunRecord
+import com.x.myview.run.distLabel
 import com.x.myview.run.kmText
 import com.x.myview.run.speedKmh
 import com.x.myview.ui.components.MvCard
@@ -93,8 +94,8 @@ private fun WeekFigure(value: String, unit: String) {
 fun RunBestsCard(history: List<RunRecord>) {
     if (history.isEmpty()) return
     val longest = history.maxByOrNull { it.distanceM }
-    // A speed record only counts for runs of at least 500 m, so a short GPS blip cannot win.
-    val fastest = history.filter { it.distanceM >= 500f }.maxByOrNull { it.avgSpeedMs }
+    // A speed record only counts for runs of at least 50 m, so a short GPS blip cannot win.
+    val fastest = history.filter { it.distanceM >= 50f }.maxByOrNull { it.avgSpeedMs }
     val longTime = history.maxByOrNull { it.durationSec }
     val bestKm = history.flatMap { it.splits }.minOrNull()
     val lifetime = history.sumOf { it.distanceM.toDouble() }.toFloat()
@@ -102,7 +103,7 @@ fun RunBestsCard(history: List<RunRecord>) {
     MvCard(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Personal bests", fontWeight = FontWeight.SemiBold)
-            if (longest != null) BestRow("Longest distance", kmText(longest.distanceM) + " km")
+            if (longest != null) BestRow("Longest distance", distLabel(longest.distanceM))
             if (fastest != null) BestRow("Fastest average", String.format(Locale.US, "%.1f km/h", speedKmh(fastest.avgSpeedMs)))
             if (bestKm != null) BestRow("Fastest kilometre", "${bestKm / 60}:${String.format(Locale.US, "%02d", bestKm % 60)} /km")
             if (longTime != null) BestRow("Longest time", formatDuration(longTime.durationSec))

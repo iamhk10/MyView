@@ -274,6 +274,7 @@ fun TodayScreen(vm: MainViewModel, onOpen: (String) -> Unit, onGoTab: (Int) -> U
                                 .fillMaxWidth()
                                 .staggerIn(0)
                                 .clip(RoundedCornerShape(28.dp))
+                                .shimmer()
                                 .background(Brush.horizontalGradient(listOf(purple.container, blue.container))),
                         ) {
                             Column(Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
@@ -290,12 +291,18 @@ fun TodayScreen(vm: MainViewModel, onOpen: (String) -> Unit, onGoTab: (Int) -> U
                         }
                 }
             }
+            item { LiveRunBanner(padH.staggerIn(1)) { onOpen("run") } }
             item {
-                Row(padH.staggerIn(1), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ToolChip(iconFor("timer"), "Focus", Modifier.weight(1f)) { onOpen("focus") }
-                    ToolChip(iconFor("spa"), "Breathe", Modifier.weight(1f)) { onOpen("breathe") }
-                    ToolChip(iconFor("star"), "Awards", Modifier.weight(1f)) { onOpen("awards") }
-                }
+                QuickActionsRow(
+                    listOf(
+                        QuickAction(iconFor("run"), "Run", teal.accent, teal.container) { onOpen("run") },
+                        QuickAction(iconFor("bolt"), "Plans", orange.accent, orange.container) { onOpen("plans") },
+                        QuickAction(iconFor("fitness"), "Library", purple.accent, purple.container) { onOpen("library") },
+                        QuickAction(iconFor("timer"), "Focus", blue.accent, blue.container) { onOpen("focus") },
+                        QuickAction(iconFor("spa"), "Breathe", teal.accent, teal.container) { onOpen("breathe") },
+                        QuickAction(iconFor("star"), "Awards", orange.accent, orange.container) { onOpen("awards") },
+                    ),
+                )
             }
             if (vm.stepsSupported && !stepsGranted) {
                 item {
@@ -395,6 +402,13 @@ fun TodayScreen(vm: MainViewModel, onOpen: (String) -> Unit, onGoTab: (Int) -> U
                 }
             }
 
+            item { RunWeekMini(padH.staggerIn(2)) { onOpen("run") } }
+            item {
+                DailyChallengeCard(
+                    today, vm.stepsSupported && stepsGranted, stepsToday, waterMl, settings.waterGoalMl,
+                    repsToday, doneCount, planned.size, padH.staggerIn(3),
+                )
+            }
             item { SectionTitle("Water") }
             item {
                 TonalCard(blue.container, padH.staggerIn(3), onClick = { onGoTab(3) }) {
@@ -548,6 +562,7 @@ fun TodayScreen(vm: MainViewModel, onOpen: (String) -> Unit, onGoTab: (Int) -> U
             }
             }
         }
+        item { LiveRunBanner(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) { onOpen("run") } }
 
         item {
             GradientCard(
