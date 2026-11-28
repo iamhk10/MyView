@@ -29,6 +29,10 @@ import com.x.myview.domain.exerciseTotal
 import com.x.myview.domain.quoteFor
 import com.x.myview.domain.scheduledHabits
 import com.x.myview.reminders.Reminders
+import com.x.myview.run.RunRecord
+import com.x.myview.run.RunStore
+import com.x.myview.run.distLabel
+import com.x.myview.util.formatDuration
 import com.x.myview.ui.theme.ACCENTS
 import com.x.myview.util.formatMl
 import com.x.myview.util.todayEpochDay
@@ -62,6 +66,10 @@ class StepsWidget : BaseWidget()
 class StreakWidget : BaseWidget()
 class WorkoutWidget : BaseWidget()
 class QuoteWidget : BaseWidget()
+class RingsWidget : BaseWidget()
+class TodayWidget : BaseWidget()
+class RunWeekWidget : BaseWidget()
+class StepsWeekWidget : BaseWidget()
 
 private class Snapshot(
     val today: Long,
@@ -77,6 +85,11 @@ private class Snapshot(
     val weekActive: List<Boolean>,
     val goalsDone: Int,
     val exerciseCount: Int,
+    /** Run and walk metres per day for the last 7 days (today last). */
+    val runWeekM: List<Float>,
+    val runWeekCount: Int,
+    val lastRun: RunRecord?,
+    val stepsWeek: List<Int>,
 )
 
 object WidgetUpdater {
@@ -101,11 +114,16 @@ object WidgetUpdater {
         val streakIds = mgr.getAppWidgetIds(ComponentName(app, StreakWidget::class.java))
         val workoutIds = mgr.getAppWidgetIds(ComponentName(app, WorkoutWidget::class.java))
         val quoteIds = mgr.getAppWidgetIds(ComponentName(app, QuoteWidget::class.java))
+        val ringsIds = mgr.getAppWidgetIds(ComponentName(app, RingsWidget::class.java))
+        val todayIds = mgr.getAppWidgetIds(ComponentName(app, TodayWidget::class.java))
+        val runWeekIds = mgr.getAppWidgetIds(ComponentName(app, RunWeekWidget::class.java))
+        val stepsWeekIds = mgr.getAppWidgetIds(ComponentName(app, StepsWeekWidget::class.java))
         if (habitIds.isEmpty() && waterIds.isEmpty() && summaryIds.isEmpty() && stepsIds.isEmpty() &&
-            streakIds.isEmpty() && workoutIds.isEmpty() && quoteIds.isEmpty()
+            streakIds.isEmpty() && workoutIds.isEmpty() && quoteIds.isEmpty() &&
+            ringsIds.isEmpty() && todayIds.isEmpty() && runWeekIds.isEmpty() && stepsWeekIds.isEmpty()
         ) return
 
-        if (syncSteps && (summaryIds.isNotEmpty() || stepsIds.isNotEmpty())) {
+        if (syncSteps && (summaryIds.isNotEmpty() || stepsIds.isNotEmpty() || ringsIds.isNotEmpty() || todayIds.isNotEmpty() || stepsWeekIds.isNotEmpty())) {
             val tracker = (app as MyViewApp).container.stepTracker
             if (tracker.isSupported && !tracker.isLive) tracker.readOnce(1500)
         }
@@ -117,6 +135,10 @@ object WidgetUpdater {
         if (streakIds.isNotEmpty()) mgr.updateAppWidget(streakIds, cardViews(app, streakBitmap(snap)))
         if (workoutIds.isNotEmpty()) mgr.updateAppWidget(workoutIds, cardViews(app, workoutBitmap(snap)))
         if (quoteIds.isNotEmpty()) mgr.updateAppWidget(quoteIds, cardViews(app, quoteBitmap(snap)))
+        if (ringsIds.isNotEmpty()) mgr.updateAppWidget(ringsIds, cardViews(app, ringsBitmap(snap)))
+        if (todayIds.isNotEmpty()) mgr.updateAppWidget(todayIds, cardViews(app, todayBitmap(snap)))
+        if (runWeekIds.isNotEmpty()) mgr.updateAppWidget(runWeekIds, cardViews(app, runWeekBitmap(snap)))
+        if (stepsWeekIds.isNotEmpty()) mgr.updateAppWidget(stepsWeekIds, cardViews(app, stepsWeekBitmap(snap)))
     }
 
     private suspend fun load(ctx: Context): Snapshot {
@@ -138,6 +160,17 @@ object WidgetUpdater {
             streak++
             d--
         }
+        val runs = RunStore.all(ctx)
+        val zone = java.time.ZoneId.systemDefault()
+        val perDay = HashMap<Long, Float>()
+        runs.forEach { r ->
+            val day = java.time.Instant.ofEpochMilli(r.startedAt).atZone(zone).toLocalDate().toEpochDay()
+            perDay[day] = (perDay[day] ?: 0f) + r.distanceM
+        }
+        val runWeek = (today - 6..today).map { perDay[it] ?: 0f }
+        val runsThisWeek = runs.count {
+            java.time.Instant.ofEpochMilli(it.startedAt).atZone(zone).toLocalDate().toEpochDay() in (today - 6..today)
+        }
         return Snapshot(
             today = today,
             settings = c.settings.settings.value,
@@ -152,6 +185,10 @@ object WidgetUpdater {
             weekActive = (today - 6..today).map { it in active },
             goalsDone = exercises.count { it.dailyGoal > 0 && exerciseTotal(logs, it.id, today) >= it.dailyGoal },
             exerciseCount = exercises.size,
+            runWeekM = runWeek,
+            runWeekCount = runsThisWeek,
+            lastRun = runs.firstOrNull(),
+            stepsWeek = (today - 6..today).map { c.stepTracker.stepsFor(it) },
         )
     }
 
@@ -570,6 +607,88 @@ object WidgetUpdater {
         }
         canvas.drawText("MyView", w - pad, h - 36f, foot)
         return bmp
+    }
+
+    // ---------- Premium widgets (glow + gradient cards) ----------
+
+    private fun wcolors(snap: Snapshot): WColors {
+        val p = pal(snap)
+        return WColors(p.card, p.ink, p.sub, p.track, p.accent)
+    }
+
+    private fun dayLetters(): List<String> {
+        val today = java.time.LocalDate.now()
+        return (6 downTo 0).map {
+            today.minusDays(it.toLong()).dayOfWeek.getDisplayName(java.time.format.TextStyle.NARROW, java.util.Locale.getDefault())
+        }
+    }
+
+    /** Three nested rings: steps (or habits when the phone has no step sensor), water, reps. */
+    private fun ringsBitmap(snap: Snapshot): Bitmap {
+        val goalWater = snap.settings.waterGoalMl.coerceAtLeast(1)
+        val habitsDone = snap.planned.count { snap.today in (snap.doneByHabit[it.id] ?: emptySet()) }
+        val first = if (snap.stepsSupported) {
+            RingSpec(snap.steps.toFloat() / snap.settings.stepGoal.coerceAtLeast(1), 0xFF2DD4BF.toInt(), 0xFF5EEAD4.toInt(), compact(snap.steps), "STEPS")
+        } else {
+            RingSpec(if (snap.planned.isEmpty()) 0f else habitsDone.toFloat() / snap.planned.size, 0xFFFF6FB5.toInt(), 0xFFFFA3D1.toInt(), "$habitsDone/${snap.planned.size}", "HABITS")
+        }
+        val water = RingSpec(
+            snap.waterMl.toFloat() / goalWater, 0xFF3FA9FF.toInt(), 0xFF8E7CFF.toInt(),
+            if (snap.waterMl >= 1000) String.format(java.util.Locale.US, "%.1fL", snap.waterMl / 1000f) else "${snap.waterMl}ml", "WATER",
+        )
+        val reps = RingSpec(
+            if (snap.repsGoal > 0) snap.reps.toFloat() / snap.repsGoal else 0f, 0xFFFF8A3D.toInt(), 0xFFFFC857.toInt(), compact(snap.reps), "REPS",
+        )
+        return PremiumCards.rings(wcolors(snap), listOf(first, water, reps))
+    }
+
+    private fun todayBitmap(snap: Snapshot): Bitmap {
+        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        val greeting = when {
+            hour < 5 -> "Good night"
+            hour < 12 -> "Good morning"
+            hour < 17 -> "Good afternoon"
+            hour < 21 -> "Good evening"
+            else -> "Good night"
+        }
+        val date = java.text.SimpleDateFormat("EEE, d MMM", java.util.Locale.getDefault()).format(java.util.Date())
+        val goalWater = snap.settings.waterGoalMl.coerceAtLeast(1)
+        val habitsDone = snap.planned.count { snap.today in (snap.doneByHabit[it.id] ?: emptySet()) }
+        val stats = ArrayList<StatSpec>()
+        if (snap.stepsSupported) {
+            stats.add(StatSpec("STEPS", compact(snap.steps), snap.steps.toFloat() / snap.settings.stepGoal.coerceAtLeast(1), 0xFF2DD4BF.toInt()))
+        }
+        stats.add(
+            StatSpec(
+                "WATER",
+                if (snap.waterMl >= 1000) String.format(java.util.Locale.US, "%.1fL", snap.waterMl / 1000f) else "${snap.waterMl}ml",
+                snap.waterMl.toFloat() / goalWater, 0xFF3FA9FF.toInt(),
+            ),
+        )
+        stats.add(StatSpec("REPS", compact(snap.reps), if (snap.repsGoal > 0) snap.reps.toFloat() / snap.repsGoal else 0f, 0xFFFF8A3D.toInt()))
+        stats.add(StatSpec("HABITS", "$habitsDone/${snap.planned.size}", if (snap.planned.isEmpty()) 0f else habitsDone.toFloat() / snap.planned.size, 0xFFFF6FB5.toInt()))
+        return PremiumCards.today(wcolors(snap), greeting, date, snap.streak, stats)
+    }
+
+    private fun runWeekBitmap(snap: Snapshot): Bitmap {
+        val total = snap.runWeekM.sum()
+        val last = snap.lastRun
+        val note = if (last == null) "No runs yet" else "Last: ${distLabel(last.distanceM)} in ${formatDuration(last.durationSec)}"
+        val totalText = if (total < 1000f) "${total.toInt()} m" else String.format(java.util.Locale.US, "%.1f km", total / 1000f)
+        return PremiumCards.weekBars(
+            wcolors(snap), "RUN AND WALK  \u2022  7 DAYS", totalText, note,
+            snap.runWeekM, dayLetters(), null,
+        )
+    }
+
+    private fun stepsWeekBitmap(snap: Snapshot): Bitmap {
+        val total = snap.stepsWeek.sum()
+        val goal = snap.settings.stepGoal
+        val note = if (snap.stepsSupported) "Goal ${String.format(java.util.Locale.US, "%,d", goal)} a day" else "No step sensor"
+        return PremiumCards.weekBars(
+            wcolors(snap), "STEPS  \u2022  7 DAYS", if (snap.stepsSupported) "${compact(total)} steps" else "--", note,
+            snap.stepsWeek.map { it.toFloat() }, dayLetters(), if (snap.stepsSupported) goal.toFloat() else null,
+        )
     }
 
     /** 8200 -> "8.2k", 12400 -> "12k", small numbers stay as they are. */
