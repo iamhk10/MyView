@@ -8,6 +8,8 @@ import com.x.myview.data.db.MoodLogEntity
 import com.x.myview.data.db.SleepLogEntity
 import com.x.myview.data.db.WaterLogEntity
 import com.x.myview.data.db.WeightLogEntity
+import com.x.myview.run.RunRecord
+import com.x.myview.run.RunStore
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -30,11 +32,14 @@ class BackupData(
     val breath: Map<Long, Int> = emptyMap(),
     val settings: AppSettings? = null,
     val hasExtras: Boolean = false,
+    /** Run and walk history (format 3). [hasRuns] is false for older backups, which leave the current history alone. */
+    val runs: List<RunRecord> = emptyList(),
+    val hasRuns: Boolean = false,
 )
 
 /** Reads and writes backups as one readable JSON file. */
 object Backup {
-    private const val FORMAT = 2
+    private const val FORMAT = 3
 
     private fun dayCounts(map: Map<Long, Int>, valueKey: String): JSONArray = JSONArray().also { a ->
         map.entries.sortedBy { it.key }.forEach { a.put(JSONObject().put("day", it.key).put(valueKey, it.value)) }
@@ -50,6 +55,7 @@ object Backup {
         .put("sleepGoalMin", s.sleepGoalMin).put("useLb", s.useLb).put("weightGoalKg", s.weightGoalKg.toDouble())
         .put("haptics", s.haptics).put("celebrate", s.celebrate).put("liveSteps", s.liveSteps)
         .put("look", s.look.name).put("displayFont", s.displayFont.name)
+        .put("widgetStyle", s.widgetStyle).put("voiceCoach", s.voiceCoach)
 
     private inline fun <reified E : Enum<E>> JSONObject.enumOf(key: String, default: E): E =
         enumValues<E>().firstOrNull { it.name == optString(key) } ?: default
@@ -79,6 +85,8 @@ object Backup {
             liveSteps = o.optBoolean("liveSteps", d.liveSteps),
             look = o.enumOf("look", d.look),
             displayFont = o.enumOf("displayFont", d.displayFont),
+            widgetStyle = o.optInt("widgetStyle", d.widgetStyle).coerceIn(0, 2),
+            voiceCoach = o.optBoolean("voiceCoach", d.voiceCoach),
         )
     }
 
@@ -124,6 +132,7 @@ object Backup {
         root.put("steps", dayCounts(d.steps, "steps"))
         root.put("focus", dayCounts(d.focus, "minutes"))
         root.put("breath", dayCounts(d.breath, "sessions"))
+        root.put("runs", RunStore.encode(d.runs))
         d.settings?.let { root.put("settings", settingsToJson(it)) }
         return root.toString(2)
     }
@@ -141,6 +150,7 @@ object Backup {
             arr(name).mapObjects { it.getLong("day") to it.getInt(valueKey) }.toMap()
 
         val extras = root.optInt("format", 1) >= 2
+        val withRuns = root.optInt("format", 1) >= 3
         return BackupData(
             habits = arr("habits").mapObjects {
                 HabitEntity(
@@ -175,6 +185,8 @@ object Backup {
             breath = if (extras) counts("breath", "sessions") else emptyMap(),
             settings = if (extras) root.optJSONObject("settings")?.let { settingsFromJson(it) } else null,
             hasExtras = extras,
+            runs = if (withRuns) RunStore.decode(arr("runs")) else emptyList(),
+            hasRuns = withRuns,
         )
     }
 }

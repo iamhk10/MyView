@@ -105,6 +105,8 @@ class Repository(private val db: MyViewDatabase) {
         breath = extras?.breath ?: emptyMap(),
         settings = extras?.settings,
         hasExtras = extras != null,
+        runs = extras?.runs ?: emptyList(),
+        hasRuns = extras != null,
     )
 
     /** Replaces everything with [d] in one transaction: either all of it is restored or nothing changes. */
